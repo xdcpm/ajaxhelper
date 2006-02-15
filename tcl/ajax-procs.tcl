@@ -75,11 +75,6 @@ ad_proc -public ah::js_sources {
 	if { $default_p } {
 		# load prototype and scriptaculous js files
 		append script "<script type=\"text/javascript\" src=\"${ah_base_url}prototype/prototype.js\"></script> \n"
-		append script "<script type=\"text/javascript\" src=\"${ah_base_url}scriptaculous/builder.js\"></script> \n"
-		append script "<script type=\"text/javascript\" src=\"${ah_base_url}scriptaculous/controls.js\"></script> \n"
-		append script "<script type=\"text/javascript\" src=\"${ah_base_url}scriptaculous/dragdrop.js\"></script> \n"
-		append script "<script type=\"text/javascript\" src=\"${ah_base_url}scriptaculous/effects.js\"></script> \n"
-		append script "<script type=\"text/javascript\" src=\"${ah_base_url}scriptaculous/slider.js\"></script> \n"
 		append script "<script type=\"text/javascript\" src=\"${ah_base_url}scriptaculous/scriptaculous.js\"></script> \n"		
 	} else {
 		if { [info exists source] } {
