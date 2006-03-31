@@ -8,13 +8,13 @@
     <singleton-p>t</singleton-p>
     <auto-mount>ajax</auto-mount>
 
-    <version name="0.1d" url="http://openacs.org/repository/download/apm/ajaxhelper-0.1d.apm">
+    <version name="0.2d" url="http://openacs.org/repository/download/apm/ajaxhelper-0.2d.apm">
         <owner url="mailto:ham@solutiongrove.com">Hamilton Chua</owner>
-        <summary>Provides helper procs to generate javascript for XMHTTP calls and cinematic effects using the Scriptaculous javascript library (http://script.aculo.us/) and RICO (http://www.openrico.org) javascript library</summary>
-        <vendor>Solutiongrove</vendor>
+        <summary>Provides helper procs to generate javascript for XMHTTP calls and cinematic effects using the Scriptaculous javascript library (http://script.aculo.us/) </summary>
+        <vendor>Solution Grove</vendor>
         <maturity>0</maturity>
 
-        <provides url="ajaxhelper" version="0.1d"/>
+        <provides url="ajaxhelper" version="0.2d"/>
 
         <callbacks>
         </callbacks>
