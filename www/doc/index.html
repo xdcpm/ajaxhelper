@@ -53,7 +53,7 @@ ADP File (blank-master.adp):<br>
 &nbsp;&nbsp;&nbsp; @ah_sources;noquote@<br>
 <br>
 Compiled Template:<br>
-<pre id="line11">&lt;<span class="start-tag">script</span><span
+<pre id="line1">&lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/prototype/prototype.js"</span>&gt;&lt;/<span
  class="end-tag">script</span>&gt; <br>&lt;<span class="start-tag">script</span><span
@@ -71,15 +71,15 @@ Compiled Template:<br>
  class="end-tag">script</span>&gt; <br>&lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/scriptaculous/slider.js"</span>&gt;&lt;/<span
- class="end-tag">script</span>&gt;<br>&lt;<span class="start-tag">script</span><span
+ class="end-tag">script</span>&gt; <br></pre>
+<pre id="line11">&lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/scriptaculous/scriptaculous.js"</span>&gt;&lt;/<span
  class="end-tag">script</span>&gt;<br><br></pre>
 The above TCL API generates the <span style="font-style: italic;">default</span>
 sources that must be declared for you to be able to use the javascript
-libraries Ajax Helper has support for overlibmws (DHTML callouts) and
-RICO (other cinematic effects) in addition to scriptaculous.&nbsp;
-Scriptaculous is the default javascript library.<br>
+effects. Ajax Helper has support for overlibmws (DHTML callouts) and
+RICO (other cinematic effects) in addition to scriptaculous. <br>
 <br>
 To generate the javascript sources for Rico :<br>
 <br>
@@ -97,7 +97,7 @@ To use these functions wihtout using all of rico.js<br>
 <br>
 NOTE :<br>
 <br>
-You can combine sources by doing this<br>
+You can combine sources by doing something like this<br>
 <br>
 &nbsp;&nbsp;&nbsp; set ah_sources [ah::js_sources -default]<br>
 &nbsp;&nbsp;&nbsp; append ah_sources [ah::js_sources -source
@@ -112,140 +112,29 @@ the same time.<br>
 <br>
 <span style="font-weight: bold;">Ajax Procedures :<br>
 <br>
-Prototype</span> has a pair of javascript functions that alllow
+</span>Scriptaculous has a pair of javascript functions that alllow
 programmers to use XMLHTTP. The ajax.updater and ajax.request
 functions. See <a
  href="http://wiki.script.aculo.us/scriptaculous/show/Ajax.Updater">http://wiki.script.aculo.us/scriptaculous/show/Ajax.Updater</a>
 and <a
  href="http://wiki.script.aculo.us/scriptaculous/show/Ajax.Request">http://wiki.script.aculo.us/scriptaculous/show/Ajax.Request</a>
-for more information about these javascript functions.<br>
+for more informaiton about the scriptaculous functions.<br>
 <br>
 The TCL API is used like this<br>
 <br>
-&nbsp;&nbsp;&nbsp; set request [ah::ajaxrequest -url
-"/url/to/call"&nbsp;
-\<br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp; -pars
-"parameter1=parameter_value&amp;parameter1=parameter_value"&nbsp; ]<br>
+&nbsp;&nbsp;&nbsp; set request [ah::ajaxrequest -url "/url/to/call"
+-pars "parameter1=parameter_value&amp;parameter1=parameter_value"
+-options "asynchronous:true" ]<br>
 <br>
 The above api will generate an ajax.request javascript function that is
-best placed in an&nbsp; event like "onClick".<br>
+best placed in a javascript event.<br>
 <br>
 &nbsp;&nbsp;&nbsp; &lt;a href="#" onClick="@request;noquote@"&gt;<br>
 <br>
-Consult the api-doc for more information about other parameters you can
-pass on to the ah::ajaxrequest proc.<br>
-<br>
-The ah::ajaxrequest will make an xmlhttp call but does not do anything
-about the response. To update content based on the response from an
-xmlhttp request, use ah::ajaxupdate. This procedure will not only make
-an xmlhttp call but update the contents of a div or layer with the
-response text of the xmlhttp request.<br>
-<br>
-Here's an example :<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; set js_update_connections
-[ah::ajaxupdate -container "connections"&nbsp; \<br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; -url "/url/to/call" \<br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; -enclose&nbsp; \<br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; -pars
-"'effects=$effects&amp;limit_n=$limit_n'"&nbsp; \<br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;
--effect "Fade" \<br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; -effectopts "duration: 0.5"]<br>
-<br>
-On the adp side, you can just put<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; @js_update_connections;noquote@<br>
-<br>
-The "-enclose" parameter tells the procedure to enclose the resulting
-script in script tags &lt;script&gt;&lt;/script&gt;. This is another
-option in addition to putting the scripts in html event attributes like
-onClick, onMouseover or onChange.<br>
-<br>
-The "-pars" parameter is where you pass the querystring that you want
-to send along with the xmlhttp request. Notice that it takes the form
-of a querystring that you normally see in the address bar of your
-browser. Use this to pass values to the URL you are making an xmlhttp
-request to.<br>
-<br>
-The "-effect" parameter is an optional parameter that allows you to
-specify the effect you want to execute after the container's content
-has been updated.<br>
-<br>
-<span style="font-weight: bold;">Cinematic Effects :<br>
-<br>
-</span>Use ah::effects to generate javascript that allows you to
-implement transitional and cinematic effects to html elements. You will
-need to consult the scriptaculous documentation
-http://wiki.script.aculo.us/scriptaculous/tags/effects to know what
-kinds of
-effects and what kinds of options you can pass to the effect script.<br>
-<br>
-The procedure is called in this manner :<br>
-<br>
-&nbsp;&nbsp;&nbsp; set effect [ah::effect -element "container" <br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;
--effect "Fade" <br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -options "duration: 1.5"]<br>
-NOTE :<br>
-The Effect name and the options are case sensitive.<br>
-<span style="font-weight: bold;"><br>
-</span><span style="font-weight: bold;"><br>
-DHTML Callouts :<br>
-<br>
-</span>There is currently basic support for overlibmws. Right now we
-are able to create bubble type call outs.<br>
-<br>
-In your tcl file ...<br>
-<br>
-&nbsp;&nbsp; set onmouseover [ah::bubblecallout -text " Contents of My
-Popup" ]<br>
-<br>
-The adp file should have something like this ....<br>
-&nbsp;&nbsp; <br>
-&nbsp;&nbsp; &lt;a href="#" @onmouseover;noquote@ &gt;Link with
-Popup&lt;/a&gt;<br>
-<br>
-<span style="font-weight: bold;">Drag and Drop Sortables :<br>
-<br>
-</span>Sortables are documented in the scriptaculous wiki <a
- href="http://wiki.script.aculo.us/scriptaculous/show/Sortables">http://wiki.script.aculo.us/scriptaculous/show/Sortables.</a><br>
-For sortables to work you will need to define a container which will
-hold the elements you want to be sortable.<br>
-<br>
-Here is what the script looks like<br>
-<br>
-&nbsp;&nbsp;&nbsp; append scripts [ah::sortable -element "container" <br>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp; -options
-"tag:'div',only:'portlet',overlap:'horizontal',constraint:false,ghosting:false"]<br>
-<br>
-You adp page should contain a div with id attribute container. This
-"container" should have subcontainers which the above script will make
-sortable.<br>
-<br>
-<span style="font-weight: bold;"><br>
-</span><br>
 <br>
 <br>
 <br>
 <br>
+<span style="font-weight: bold;"></span><br>
 </body>
 </html>

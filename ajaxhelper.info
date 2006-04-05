@@ -10,8 +10,8 @@
 
     <version name="0.2d" url="http://openacs.org/repository/download/apm/ajaxhelper-0.2d.apm">
         <owner url="mailto:ham@solutiongrove.com">Hamilton Chua</owner>
-        <summary>Provides helper procs to generate javascript for XMHTTP calls and cinematic effects using the Scriptaculous javascript library (http://script.aculo.us/) </summary>
-        <vendor>Solution Grove</vendor>
+        <summary>Provides helper procs to generate javascript for Ajax and cinematic effects.</summary>
+        <vendor>Solutiongrove</vendor>
         <maturity>0</maturity>
 
         <provides url="ajaxhelper" version="0.2d"/>

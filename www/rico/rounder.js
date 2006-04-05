@@ -78,7 +78,11 @@ Rico.Corner = {
       var slice = document.createElement("span");
 
       var inStyle = slice.style;
-      inStyle.backgroundColor = color;
+      if(/MSIE/.test(navigator.userAgent)){
+           inStyle.backgroundColor = '#fff';
+      } else {
+           inStyle.backgroundColor = color;
+      }
       inStyle.display  = "block";
       inStyle.height   = "1px";
       inStyle.overflow = "hidden";
@@ -92,6 +96,9 @@ Rico.Corner = {
          inStyle.borderRightWidth  = "0px";
          inStyle.borderBottomWidth = "0px";
          inStyle.height            = "0px"; // assumes css compliant box model
+         if(/MSIE/.test(navigator.userAgent)){
+              inStyle.height        = "1px"; // so make IE use 1px
+         }
          inStyle.borderColor       = borderColor;
       }
       else if(borderColor) {
