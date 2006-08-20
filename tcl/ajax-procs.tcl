@@ -1,8 +1,7 @@
 ad_library {
 
 	Library for Ajax Helper Procs
- 	based on 
-	Scriptaculous and Prototype for Ajax and Effects
+ 	based on Scriptaculous and Prototype for Ajax and Effects
 	OverlibMWS for Popups
 
     @author Hamilton Chua (ham@solutiongrove.com)
@@ -14,7 +13,7 @@ namespace eval ah { }
 ad_proc -private ah::get_package_id  {
 
 } {
-	Return the package_id of the installed and mounted ajax helper
+	Return the package_id of the installed and mounted ajax helper instance
 
 	@author Hamilton Chua (ham@solutiongrove.com)	
 	@creation-date 2006-01-16
@@ -47,87 +46,94 @@ ad_proc -private ah::isnot_js_var {
 	Receives a string and surrounds it with single quotes.
 	This is a utility proc used to make a parameter passed to a proc a string.
 	The assumption is that an element passed as a parameter is a javascript variable.
+
+	@author Hamilton Chua (ham@solutiongrove.com)	
+	@creation-date 2006-01-16
+	@return 
 } {
 	return "'$element'"
 }
 
-ad_proc -public ah::js_sources {
-	{-default:boolean}
-	{-source ""}
-	{-withbubble:boolean}
-	{-scrollable:boolean}
-	{-draggable:boolean}
-} {
+ad_proc -private ah::dynamic_load_functions {
 	
-	Generates the < script > syntax needed on the head 
-	for each set of javascript files this package uses or needs to source.
-	The code :
-	<pre>
-		[ah::js_sources -default]
-	</pre>
-	will load the prototype javascript library and scriptaculous javascript files by default.
-
-	It's not recommended to mix scriptaculous and rico.
+} {
+	Generates the javascript functions that perform dynamic loading of local javascript files.
+	http://www.phpied.com/javascript-include/
+        WARNING : experimental
 
 	@author Hamilton Chua (ham@solutiongrove.com)	
-	@creation-date 2006-01-16
-
-	@param default Loads the prototype and scriptaculous javascript libraries.
-	@param source The caller can specify which set of javascript source files to load. 
-		Valid values include 
-		"rounder" : to load the rico corner rounder functions only, use this if you are working primarily with scriptaculous, 
-		"rico" : to load the rico javascript library, 
-		"overlibws" : to load the overlibmws javascript files for dhtml callouts and popups.
-
-	@param withbubble Do we want to use the overlibmws plugin for bubble callouts ?
-	@param scrollable Do we want to use the overlibmws scrollable plugin ?
-	@param draggable Do we want to use the overlibmws draggable plugin ?
-
-	@return 
-
-	@error 
+	@creation-date 2006-04-20
 
 } {
 	set ah_base_url [ah::get_url]
-	set script ""
+	set script "<script type=\"text/javascript\" src=\"${ah_base_url}dynamicInclude.js\"></script>"
+	return $script
+}
 
-	if { $default_p } {
-		# load prototype and scriptaculous js files
-		append script "<script type=\"text/javascript\" src=\"${ah_base_url}prototype/prototype.js\"></script> \n"
-		append script "<script type=\"text/javascript\" src=\"${ah_base_url}scriptaculous/scriptaculous.js\"></script> \n"		
-	} else {
-		if { [info exists source] } {
-			# load other js libraries
-			switch $source {
-				"rico" { 
-					append script "<script type=\"text/javascript\" src=\"${ah_base_url}rico/rico.js\"></script> \n" 
-				}
-				"rounder" {
-					append script "<script type=\"text/javascript\" src=\"${ah_base_url}rico/rounder.js\"></script> \n" 
-				}
-				"overlibmws" {
-					append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws.js\"></script> \n"
-					append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws_overtwo.js\"></script>\n"
-					if { $withbubble_p } {
-						append script "<script language=\"JavaScript\" type=\"text/JavaScript\">var OLbubbleImageDir=\"${ah_base_url}overlibmws\";</script>\n"
-						append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws_bubble.js\"></script>\n"
-					}
-					if { $scrollable_p } {
-						append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws_scroll.js\"></script>\n"
-					}
-					if { $draggable_p } {
-						append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws_draggable.js\"></script>\n"
-					}	
-				}
-				default {
-					# invalid value for source
-				}
+ad_proc -public ah::js_include {
+	{-js_file ""}
+} {
+	Generates the javscript to include a js file dynamically via DOM to the head section of the page.
+        WARNING : experimental
+
+	@author Hamilton Chua (ham@solutiongrove.com)	
+	@creation-date 2006-04-20
+} {
+	return "js_include_once('$js_file'); "
+}
+
+ad_proc -public ah::js_source_dynamic {
+	{-js "default"}
+	{-enclose:boolean}
+} {
+	Uses the javascript dynamic loading functions to load the comma separated list of javascript source file.
+        WARNING : experimental
+
+	@author Hamilton Chua (ham@solutiongrove.com)	
+	@creation-date 2006-04-20
+
+
+	@param js A comma separated list of js files to load.
+		Possible values include prototype, scriptaculous, rounder, rico, overlibmws, overlibmws_bubble, overlibmws_scroll, overlibmws_drag
+        @param enclose Specify this if you want the javascript to be enclosed in script tags, which is usually the case unless you include this along with other javascript.
+} {
+
+	set ah_base_url [ah::get_url]
+	set script ""
+	set js_file_list [split $js ","]
+	
+	foreach x $js_file_list {
+		switch $x {
+			"rico" { 
+				append script [ah::js_include -js_file "${ah_base_url}rico/rico.js"]
+			}
+			"rounder" {
+				append script [ah::js_include -js_file "${ah_base_url}rico/rico.js"]
+				append script [ah::js_include -js_file "${ah_base_url}rico/rounder.js"]
+			}
+			"overlibmws" {
+				append script [ah::js_include -js_file "${ah_base_url}overlibmws/overlibmws.js"]
+				append script [ah::js_include -js_file "${ah_base_url}overlibmws/overlibmws_overtwo.js"]
+			}
+			"overlibmws_bubble" {
+				append script [ah::js_include -js_file "${ah_base_url}overlibmws/overlibmws_bubble.js"]
+			}
+			"overlibmws_scroll" {
+				append script [ah::js_include -js_file "${ah_base_url}overlibmws/overlibmws_scroll.js"]
+			}
+			"overlibmws_drag" {
+				append script [ah::js_include -js_file "${ah_base_url}overlibmws/overlibmws_draggable.js"]
+			}
+			default {
+				append script [ah::js_include -js_file "${ah_base_url}prototype/prototype.js"]
+				append script [ah::js_include -js_file "${ah_base_url}scriptaculous/scriptaculous.js"]
 			}
 		}
 	}
 
-	return $script
+	if { $enclose_p } { set script [ah::enclose_in_script -script ${script} ] }
 
+	return $script
 }
 
 ad_proc -private ah::enclose_in_script {
@@ -139,7 +145,7 @@ ad_proc -private ah::enclose_in_script {
 
 	@param script string to enclose in javascript tags.
 } {
-	set tag "<script language=\"JavaScript\" type=\"text/JavaScript\"> \n"
+	set tag "<script language=\"javascript\" type=\"text/javascript\"> \n"
 	append tag ${script}
 	append tag "\n</script>"
 	return $tag
@@ -154,6 +160,7 @@ ad_proc -public ah::starteventwatch {
 } {
 	Use prototype's Event object to watch/listen to a specific event from a specific html element.
 	Valid events include click, load, mouseover etc.
+        See ah::yui::addlistener for Yahoo's implementation which some say is more superior.
 	@author Hamilton Chua (ham@solutiongrove.com)	
 	@creation-date 2006-02-28
 
@@ -196,6 +203,7 @@ ad_proc -public ah::stopeventwatch {
 
 ad_proc -public ah::ajaxrequest {
 	-url:required
+	{-asynchronous "true"}
 	{-pars ""}
 	{-options ""}
 } {
@@ -212,9 +220,10 @@ ad_proc -public ah::ajaxrequest {
 	@param url the url that the javascript will call/query
 	@param pars the parameters that will be passed to Ajax.Request. these parameters should normally be enclosed in single quotes ('') unless you intend to provide a javascript variable or function as a parameter
 	@param options the options that will be passed to the Ajax.Request javascript function
+        @param asynchronous the default is true
 
 } {
-	set preoptions "asynchronous:'true',method:'post'"
+	set preoptions "asynchronous:${asynchronous},method:'post'"
 
 	if { [exists_and_not_null pars] } { 
 		append preoptions ",parameters:$pars"
@@ -228,6 +237,7 @@ ad_proc -public ah::ajaxrequest {
 ad_proc -public ah::ajaxupdate {
 	-container:required
 	-url:required
+	{-asynchronous "true"}
 	{-pars ""}
 	{-options ""}
 	{-effect ""}
@@ -236,7 +246,7 @@ ad_proc -public ah::ajaxupdate {
 	{-container_is_var:boolean}
 } {
 	Generate an Ajax.Updater javascript object. 
-	The parameters are passed directly to Ajax.Update script.
+	The parameters are passed directly to the Ajax.Update script.
 	You can optionally specify an effect to use as the container is updated. 
 	By default it will use the "Appear" effect.
 	Parameters and options are case sensitive, refer to scriptaculous documentation.
@@ -268,7 +278,7 @@ ad_proc -public ah::ajaxupdate {
 		set container [ah::isnot_js_var $container]
 	}
 
-	set preoptions "asynchronous:'true',method:'post'"
+	set preoptions "asynchronous:$asynchronous,method:'post'"
 
 	if { [exists_and_not_null pars] } { 
 		append preoptions ",parameters:$pars"
@@ -296,6 +306,7 @@ ad_proc -public ah::popup {
 	The ah::source must be executed with -source "overlibmws"
 	For more information about the options that you can pass 
 	http://www.macridesweb.com/oltest/
+        See ah::yui::tooltip for Yahoo's implementation
 
 	@author Hamilton Chua (ham@solutiongrove.com)	
 	@creation-date 2006-02-12
@@ -346,7 +357,7 @@ ad_proc -public ah::bubblecallout {
 	This proc will generate mouseover and mouseout javascript 
 	for dhtml callout or popup using overlibmws 
 	and the overlibmws bubble plugin.
-	The ah::source must be called with -source "overlibmws" -withbubble
+	The ah::source must be called with -source "overlibmws,overlibmws_bubble"
 
 	@author Hamilton Chua (ham@solutiongrove.com)	
 	@creation-date 2006-01-16
@@ -356,7 +367,6 @@ ad_proc -public ah::bubblecallout {
 	@param textsize the size of the text in the popup
 
 	@return 
-
 	@error 
 
 } {
@@ -382,6 +392,9 @@ ad_proc -public ah::ajax_bubblecallout {
 	
 	@param url the url to make the xmlhttp call to
 	@param pars the parameters in querystring format you want to pass to the url
+        @param options the options you want to pass to overlibmws
+        @param type parameter specific to the bubble callout
+        @param textsize the size of the text in the callout
 
 	@return 
 
@@ -411,10 +424,10 @@ ad_proc -public ah::effects {
 
 	@param element the page element that you want to apply the effect to
 	@param effect specify one of the scriptaculous effects you want to implement
-	@param options specify the options to pass to the javascript
+	@param options specify the options to pass to the scritpaculous javascript
+        @param element_is_var specify this if the element you are passing is a javascript variable
 
 	@return 
-
 	@error 
 
 } {
@@ -431,7 +444,7 @@ ad_proc -public ah::toggle {
 	{-options ""}
 	{-element_is_var:boolean}
 } {
-	Generates javascript that toggle the state of an element.
+	Generates javascript that toggles the state of an element.
 	The parameters are passed directly to the scriptaculous toggle script. 
 	Parameters and options are case sensitive, refer to scriptaculous documentation.
 	http://wiki.script.aculo.us/scriptaculous/show/Effect.toggle
@@ -441,9 +454,10 @@ ad_proc -public ah::toggle {
 
 	@param element the page element that you want to apply the effect to
 	@param effect specify one of the scriptaculous effects you want to toggle
-
-	@return 
-
+	@param options specify the options to pass to the scritpaculous javascript
+        @param element_is_var specify this if the element you are passing is a javascript variable
+	
+        @return 
 	@error 
 
 } {
@@ -481,9 +495,7 @@ ad_proc -public ah::draggable {
 	if { !$element_is_var_p } { 
 		set element [ah::isnot_js_var $element]
 	}
-
 	set script "new Draggable \($element,\{$options\}\);"
-
 	return $script
 }
 
@@ -534,9 +546,9 @@ ad_proc -public ah::droppableremove {
 	@creation-date 2006-02-24
 
 	@param element the page element that you want to be a droppable
+	@param element_is_var specify this parameter if the element you are passing is a javscript variable
 
 	@return 
-
 	@error 
 
 } {
@@ -563,10 +575,11 @@ ad_proc -public ah::sortable {
 
 	@param element the page element that you want to apply the effect to
 	@param options specify the scriptaculous options
+	@param element_is_var specify this parameter if the element you are passing is a javscript variable
 
 	@return 
-
 	@error 
+
 } {
 	if { !$element_is_var_p } { 
 		set element [ah::isnot_js_var $element]
@@ -597,5 +610,63 @@ ad_proc -public ah::rounder {
 		set element [ah::isnot_js_var $element]
 	}
 	set script "Rico.Corner.round\($element, \{$options\}\); "
+	return $script
+}
+
+ad_proc -public ah::js_sources {
+	{-source "default"}
+} {
+	
+	Will load the prototype javascript library and scriptaculous javascript files.
+
+	@author Hamilton Chua (ham@solutiongrove.com)	
+	@creation-date 2006-01-16
+
+	@param source The caller can specify which set of javascript source files to load. This can be a comma seprated list
+		Valid values include 
+		"default" : to load prototype and scriptaculous libraries
+		"rounder" : to load the rico corner rounder functions only, use this if you are working primarily with scriptaculous, 
+		"rico" : to load the rico javascript library, 
+		"overlibmws" : to load the overlibmws javascript files for dhtml callouts and popups.
+		"overlibmws_bubble" : to load the overlibmws javascript files for dhtml callouts and popups.
+		"overlibmws_scroll" : to load the overlibmws javascript files for dhtml bubble callouts and popups that scroll.
+		"overlibmws_drag" : to load the overlibmws javascript files for draggable dhtml callouts and popups.
+
+	@return
+	@error 
+} {
+
+	set ah_base_url [ah::get_url]
+	set js_file_list [split $source ","]
+	set script ""
+	
+	foreach x $js_file_list {
+		switch $x {
+			"rico" { 
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}rico/rico.js\"></script> \n" 
+			}
+			"rounder" {
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}rico/rounder.js\"></script> \n" 			}
+			"overlibmws" {
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws.js\"></script> \n"
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws_overtwo.js\"></script>\n"
+			}
+			"overlibmws_bubble" {
+				append script "<script type=\"text/JavaScript\">var OLbubbleImageDir=\"${ah_base_url}overlibmws\";</script>\n"
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws_bubble.js\"></script>\n"
+			}
+			"overlibmws_scroll" {
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws_scroll.js\"></script>\n"
+			}
+			"overlibmws_drag" {
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}overlibmws/overlibmws_draggable.js\"></script>\n"
+			}
+			default {
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}prototype/prototype.js\"></script> \n"
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}scriptaculous/scriptaculous.js\"></script> \n"		
+			}
+		}
+	}
+
 	return $script
 }
