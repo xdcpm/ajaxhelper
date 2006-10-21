@@ -35,7 +35,7 @@ ad_proc -public ah::yui::js_source_dynamic {
 	set ah_base_url [ah::get_url]
 	set script ""
 	set js_file_list [split $js ","]
-	
+
 	foreach x $js_file_list {
 		switch $x { 
 			"animation" { 
@@ -70,6 +70,7 @@ ad_proc -public ah::yui::js_source_dynamic {
 
 ad_proc -public ah::yui::js_sources {
 	{-source "default"}
+	{-min:boolean}
 } {
 
 	Generates the < script > syntax needed on the head 
@@ -100,34 +101,43 @@ ad_proc -public ah::yui::js_sources {
 	set ah_base_url [ah::get_url]
 	set script ""
 	set js_file_list [split $source ","]
+	if { $min_p } {
+		set min "-min"
+	} else {
+		set min ""
+	}
+	
 	
 	foreach x $js_file_list {
 		switch $x { 
 			"animation" { 
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/animation/animation.js\"></script> \n" 
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/animation/animation${min}.js\"></script> \n" 
 			}
 			"event" {
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/event/event.js\"></script> \n" 
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/event/event${min}.js\"></script> \n" 
 			}
 			"treeview" {
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/treeview/treeview.js\"></script> \n" 
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/treeview/treeview${min}.js\"></script> \n" 
 			}
 			"calendar" {
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/calendar/calendar.js\"></script> \n" 
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/calendar/calendar${min}.js\"></script> \n" 
 			}
 			"dragdrop" {
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/dragdrop/dragdrop.js\"></script> \n" 
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/dragdrop/dragdrop${min}.js\"></script> \n" 
 			}
 			"slider" {
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/slider/slider.js\"></script> \n" 
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/slider/slider${min}.js\"></script> \n" 
 			}
 			"container" {
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/container/container.js\"></script> \n" 
-				append script "<link rel=\"stylesheet\" type=\"text/css\" href=\"${ah_base_url}yui/container/assets/container.css\" /> \n" 
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/container/container${min}.js\"></script> \n" 
+				append script "<link rel=\"stylesheet\" type=\"text/css\" href=\"${ah_base_url}yui/container/assets/container${min}.css\" /> \n" 
+			}
+			"menu" {
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/menu/menu${min}.js\"></script> \n" 
 			}
 			default {
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/yahoo/yahoo.js\"></script> \n"
-				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/dom/dom.js\"></script> \n"		
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/yahoo/yahoo${min}.js\"></script> \n"
+				append script "<script type=\"text/javascript\" src=\"${ah_base_url}yui/dom/dom${min}.js\"></script> \n"		
 			}
 		}
 	}
@@ -138,15 +148,22 @@ ad_proc -public ah::yui::js_sources {
 ad_proc -public ah::yui::addlistener {
 	-element:required
 	-event:required
+	{-scope "''"}
 	{-callback ""}
 	{-element_is_var:boolean}
+	{-override:boolean}
 } {
 	Creates javascript for Yahoo's Event Listener.
 } {
 	if { !$element_is_var_p } { 
 		set element [ah::isnot_js_var $element]
 	}
-	return "YAHOO.util.Event.addListener($element,\"$event\",${callback});\n"
+	if { $override_p } {
+		set override "true"
+	} else {
+		set override "false"
+	}
+	return "YAHOO.util.Event.addListener($element,\"$event\",${callback},${scope},${override});\n"
 }
 
 ad_proc -public ah::yui::tooltip {

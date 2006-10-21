@@ -37,7 +37,7 @@ ad_proc -private ah::get_url  {
 	@error 
 
 } {
-	return [apm_package_url_from_id [ah::get_package_id]]
+	return "/resources/ajaxhelper/"
 }
 
 ad_proc -private ah::isnot_js_var {
@@ -200,6 +200,32 @@ ad_proc -public ah::stopeventwatch {
 	return $script
 }
 
+ad_proc -public ah::ajaxperiodical {
+	-url:required
+	-container:required
+	{-frequency "5"}
+	{-asynchronous "true"}
+	{-pars ""}
+	{-options ""}
+} {
+	Returns javascript that calls the prototype javascript library's ajax periodic updater object.
+	This object makes "polling" possible. Polling is a way by which a website can regularly update itself.
+	The ajax script is executed periodically in a set interval. 
+	It has the same properties as ajax update, the only difference is that it is executed after x number of seconds.
+	Parameters and options are case sensitive, refer to scriptaculous documentation
+	http://wiki.script.aculo.us/scriptaculous/show/Ajax.PeriodicalUpdater
+} {
+	set preoptions "asynchronous:${asynchronous},frequency:${frequency},method:'post'"
+
+	if { [exists_and_not_null pars] } { 
+		append preoptions ",parameters:$pars"
+	}
+	if { [exists_and_not_null options] } { append preoptions ",$options" }	
+	set script "new Ajax.PeriodicalUpdater('$container','$url',{$preoptions}); "
+
+	return $script
+
+}
 
 ad_proc -public ah::ajaxrequest {
 	-url:required
@@ -669,4 +695,76 @@ ad_proc -public ah::js_sources {
 	}
 
 	return $script
+}
+
+ad_proc -public ah::generate_autosuggest_array {
+    {-array_list {}}
+    {-sql_query {}}
+} {
+    Generates a javascript array for inclusion in a page header.
+    This array will be used as values for the autosuggestbox.
+    Array is a two-dimensional array with first elements the word
+    for autosuggesting and the second is for the description
+
+    @author Deds Castillo (deds@i-manila.com.ph)
+    @creation-date 2006-06-21
+
+    @param array_list a list of lists which will be constructed
+                      as the javascript array. this takes priority
+                      over sql_query parameter.
+    @param sql_query  sql query to pass to db_list_of_lists to generate
+                      the array
+} {
+    if {[llength $array_list]} {
+	set suggestion_list $array_list
+    } elseif {![string equal $sql_query {}]} {
+	set suggestion_list [db_list_of_lists get_array_list $sql_query]
+    } else {
+	# just do something for failover
+	set suggestion_list {}
+    }
+
+    set suggestions_stub {}
+    
+    append suggestions_stub "
+function AUTOSuggestions() {
+    this.auto = \[
+    "
+
+set suggestion_formatted_list {}
+foreach suggestion $suggestion_list {
+    lappend suggestion_formatted_list "\[\"[lindex $suggestion 0]\",\"[lindex $suggestion 1]\"\]"
+}
+
+append suggestions_stub [join $suggestion_formatted_list ","]
+
+append suggestions_stub "
+    \];
+}
+"
+append suggestions_stub {
+    AUTOSuggestions.prototype.requestSuggestions = function (oAutoSuggestControl /*:AutoSuggestControl*/,
+							     bTypeAhead /*:boolean*/) {
+								 var aSuggestions = [];
+								 var aDescriptions = [];
+								 var sTextboxValue = oAutoSuggestControl.textbox.value.toLowerCase();
+								  
+								 if (sTextboxValue.length > 0){
+								          
+								          //search for matching states
+									  for (var i=0; i < this.auto.length; i++) {
+														    if (this.auto[i][0].toLowerCase().indexOf(sTextboxValue) == 0) {
+															aSuggestions.push(this.auto[i][0]);
+															aDescriptions.push(this.auto[i][1]);
+														    }
+														}
+								      }
+								  
+								  //provide suggestions to the control
+								 oAutoSuggestControl.autosuggest(aSuggestions, aDescriptions, bTypeAhead);
+							     };
+}
+ 
+return $suggestions_stub
+
 }
