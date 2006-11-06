@@ -2,115 +2,157 @@
 <html>
 <head>
   <title>Ajax Helper</title>
-  <style>body { font-family:arial; }</style>
+  <style>
+  body { font-family:arial; }.style1 {color: #000066}
+  .style2 {color: #666666}
+  .style3 {color: #999999}
+  </style>
 </head>
 <body>
 <h1>Ajax Helper</h1>
-Hamilton G. Chua (ham@solutiongrove.com)<br>
-October 2006<br>
-v0.7d<br>
-<br>
-<span style="font-weight: bold;">Components :</span><br>
-Prototype v1.5.0_rc1 (<a href="http://prototype.conio.net/">http://prototype.conio.net/</a>)<br>
-Scriptaculous v1.6.4 (<a href="http://script.aculo.us/">http://script.aculo.us/</a>)<br>
-Rico v1.1.0 (<a href="http://www.openrico.org">http://www.openrico.org</a>)<br>
+<p>Hamilton G. Chua (ham@solutiongrove.com)<br>
+  November 2006<br>
+  v0.8d<br>
+  <br>
+  <span style="font-weight: bold;">Components :</span><br>
+  Prototype v1.5.0_rc_1 (<a href="http://prototype.conio.net/">http://prototype.conio.net/</a>)<br>
+  Scriptaculous v1.6.4 (<a href="http://script.aculo.us/">http://script.aculo.us/</a>)<br>
+  
 Overlibmws (<a href="http://www.macridesweb.com/oltest/">http://www.macridesweb.com/oltest/</a>)<br>
-Extracted Rounder Functions from Rico<br>
-(<a
- href="http://encytemedia.com/blog/articles/2005/12/01/rico-rounded-corners-without-all-of-rico">http://encytemedia.com/blog/articles/2005/12/01/rico-rounded-corners-without-all-of-rico</a>)<br>
-<br>
-Yahoo User Interface Library v0.11.4(<a href="http://developer.yahoo.com">http://developer.yahoo.com</a>)
-<br>
-<span style="font-weight: bold;">Introduction :<br>
-<br>
-</span>The Ajax Helper package provides TCL API to generate the
-javascript from the above components to enable their various features
-for use in OpenACS applications.
-The motivation for this package is to easily enable Web 2.0 like
-features in OpenACS applications using the most popular javascript
-library prototype.js and it's derivatives like Scriptaculous and Rico.<br>
-<br>
-<span style="font-weight: bold;">Prerequisites :<br>
-<br>
-</span>The ajax helper package must be installed and mounted in /ajax
-to be able ot use these features. The installer should automatically
-mount the ajax helper in /ajax.<span style="font-weight: bold;"><br>
-</span><br>
-<span style="font-weight: bold;">Javascript Sources :</span><br>
-<br>
-The javascript files from prototype and scriptaculous must be declared
-in the &lt; head &gt; section of an html page. In the case of OpenACS
-applications that use the templating system, the sources must be
-declared in the blank-master.adp file. <br>
-<br>
-To have the ajax helper generate
-the javascript declaration ....<br>
-<br>
-TCL File (blank-master.tcl) :<br>
-<br>
+Curvey Corners (<a href="http://www.curvycorners.net/">http://www.curvycorners.net/</a>) <br>
+Yahoo User Interface Library 0.11.4 (<a href="http://developer.yahoo.com/yui/">http://developer.yahoo.com/yui/</a>)<br>
+Dojo Toolkit
+ 0.4 (<a href="http://dojotoolkit.com">http://dojotoolkit.com</a>) <br>
+  <br>
+  <br>
+  <span style="font-weight: bold;">Introduction :<br>
+  <br>
+  </span>The Ajax Helper package provides TCL API to generate the
+  javascript from the above components to enable their various features
+  for use in OpenACS applications.
+  The motivation for this package is to easily enable Web 2.0 like
+  features in OpenACS applications using the most popular javascript
+  libraries.<br>
+  <br>
+  <span style="font-weight: bold;">Prerequisites :<br>
+  <br>
+  </span>The ajax helper package must be installed and mounted in /ajax
+  to be able ot use these features. The installer should automatically
+  mount the ajax helper in /ajax upon installation of the package. <span style="font-weight: bold;"><br>
+  </span><br>
+<span style="font-weight: bold;">Javascript Sources :</span></p>
+<p>As of version 0.8d, required javascript sources will be loaded automatically depending on the wrapper function used. The following piece of code must be present in the blank-master.tcl template file to make this automated loading of javascript source files possible.</p>
+<p>TCL File (blank-master.tcl) :</p>
+<pre><span class="style3">
+if { ![info exists header_stuff] } {
+    set header_stuff {} 
+}</span><span class="style1">
+
+# HAM : lets check ajaxhelper globals ***********************
+
+global ajax_helper_js_sources
+global ajax_helper_yui_js_sources
+global ajax_helper_dojo_js_sources
+set js_sources ""
+
+if { [info exists ajax_helper_js_sources] || [info exists ajax_helper_yui_js_sources] || [info exists ajax_helper_dojo_js_sources] } {
+
+	# if we're using ajax, let's use doc_type strict so we can get
+	# consistent results accross standards compliant browsers
+	set doc_type { < !DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd" > }
+
+	if { [info exists ajax_helper_js_sources] } {
+		append js_sources [ah::load_js_sources -source_list $ajax_helper_js_sources]
+	}
+
+	if { [info exists ajax_helper_yui_js_sources] } {
+		append js_sources [ah::yui::load_js_sources -source_list $ajax_helper_yui_js_sources]
+	}
+
+	if { [info exists ajax_helper_dojo_js_sources] } {
+		append js_sources [ah::dojo::load_js_sources -source_list $ajax_helper_dojo_js_sources]
+	}
+}
+
+# ***********************************************************</span>
+
+<span class="style2"># Attributes
+
+multirow create attribute key value
+set onload {}</span>
+</pre>
+<p>ADP File (blank-master.adp):</p>
+<p>	<span class="style1">@js_sources;noquote@</span><br>
+  <span class="style3">@header_stuff;noquote@</span></p>
+<p>Automated loading will work only if you are using a wrapper script. </p>
+<p>Alternatively if you wish to have more control of what javascript sources are loaded, you can still use the ah::js_sources procedure. </p>
+<p>  To have the ajax helper generate
+  the javascript declaration ....<br>
+  <br>
+  TCL File (e.g blank-master.tcl) :<br>
+  <br>
 &nbsp;&nbsp;&nbsp; set ah_sources [ah::js_sources -default]<br>
-<br>
-ADP File (blank-master.adp):<br>
-<br>
+  <br>
+  ADP File (eg. blank-master.adp):<br>
+  <br>
 &nbsp;&nbsp;&nbsp; @ah_sources;noquote@<br>
-<br>
-Compiled Template:<br>
-<pre id="line11">&lt;<span class="start-tag">script</span><span
+  <br>
+  Compiled Template:<br>
+  <br>
+  &lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/prototype/prototype.js"</span>&gt;&lt;/<span
- class="end-tag">script</span>&gt; <br>&lt;<span class="start-tag">script</span><span
+ class="end-tag">script</span>&gt; <br>
+  &lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/scriptaculous/builder.js"</span>&gt;&lt;/<span
- class="end-tag">script</span>&gt; <br>&lt;<span class="start-tag">script</span><span
+ class="end-tag">script</span>&gt; <br>
+  &lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/scriptaculous/controls.js"</span>&gt;&lt;/<span
- class="end-tag">script</span>&gt; <br>&lt;<span class="start-tag">script</span><span
+ class="end-tag">script</span>&gt; <br>
+  &lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/scriptaculous/dragdrop.js"</span>&gt;&lt;/<span
- class="end-tag">script</span>&gt; <br>&lt;<span class="start-tag">script</span><span
+ class="end-tag">script</span>&gt; <br>
+  &lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/scriptaculous/effects.js"</span>&gt;&lt;/<span
- class="end-tag">script</span>&gt; <br>&lt;<span class="start-tag">script</span><span
+ class="end-tag">script</span>&gt; <br>
+  &lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/scriptaculous/slider.js"</span>&gt;&lt;/<span
- class="end-tag">script</span>&gt;<br>&lt;<span class="start-tag">script</span><span
+ class="end-tag">script</span>&gt;<br>
+  &lt;<span class="start-tag">script</span><span
  class="attribute-name"> type</span>=<span class="attribute-value">"text/javascript" </span><span
  class="attribute-name">src</span>=<span class="attribute-value">"/ajax/scriptaculous/scriptaculous.js"</span>&gt;&lt;/<span
- class="end-tag">script</span>&gt;<br><br></pre>
-The above TCL API generates the <span style="font-style: italic;">default</span>
+ class="end-tag">script</span>&gt;<br>
+  <br>The above TCL API generates the <span style="font-style: italic;">default</span>
 sources that must be declared for you to be able to use the javascript
-libraries Ajax Helper has support for overlibmws (DHTML callouts) and
-RICO (other cinematic effects) in addition to scriptaculous.&nbsp;
-Scriptaculous is the default javascript library.<br>
+libraries <br>
 <br>
-To generate the javascript sources for Rico :<br>
-<br>
-&nbsp;&nbsp;&nbsp; set ah_sources [ah::js_sources -source "rico"]<br>
-<br>
+
 To generate the javscript sources for Overlibmws :<br>
 <br>
 &nbsp;&nbsp;&nbsp; set ah_sources [ah::js_sources -source "overlibmws"]<br>
 <br>
 The functions that are responsible for rounded corners has been
 extracted into rounded.js to work with scriptaculous. <br>
-To use these functions wihtout using all of rico.js<br>
+
 <br>
 &nbsp;&nbsp;&nbsp; set ah_sources [ah::js_sources -source "rounder"]<br>
 <br>
 NOTE :<br>
 <br>
-You can combine sources by doing this<br>
+You can combine sources by specifying them in the source parameter separated by commas. <br>
 <br>
-&nbsp;&nbsp;&nbsp; set ah_sources [ah::js_sources -default]<br>
-&nbsp;&nbsp;&nbsp; append ah_sources [ah::js_sources -source
-"overlibmws"]<br>
+
+&nbsp;set ah_sources [ah::js_sources -source
+"default,overlibmws"]<br>
 <br>
 The above code will generate the overlibmws javascript source
 declaration with the default declarations.<br>
 <br>
-Overlibmws and the default sources (Scriptaculous) are compatible with
-each other. It is not advisable to use both Scriptaculous and Rico at
-the same time.<br>
 <br>
 <span style="font-weight: bold;">Ajax Procedures :<br>
 <br>
@@ -125,8 +167,7 @@ for more information about these javascript functions.<br>
 The TCL API is used like this<br>
 <br>
 &nbsp;&nbsp;&nbsp; set request [ah::ajaxrequest -url
-"/url/to/call"&nbsp;
-\<br>
+"/url/to/call"&nbsp; \<br>
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
@@ -239,15 +280,7 @@ Here is what the script looks like<br>
 &nbsp;&nbsp;&nbsp;&nbsp; -options
 "tag:'div',only:'portlet',overlap:'horizontal',constraint:false,ghosting:false"]<br>
 <br>
-You adp page should contain a div with id attribute container. This
-"container" should have subcontainers which the above script will make
-sortable.<br>
-<br>
-<span style="font-weight: bold;"><br>
-</span><br>
-<br>
-<br>
-<br>
-<br>
+You adp page should contain a div with id attribute container. This "container" should have subcontainers which the above script will make
+sortable.</p>
 </body>
 </html>

@@ -8,18 +8,18 @@
     <singleton-p>t</singleton-p>
     <auto-mount>ajax</auto-mount>
 
-    <version name="0.7d" url="http://openacs.org/repository/download/apm/ajaxhelper-0.7d.apm">
+    <version name="0.8d" url="http://openacs.org/repository/download/apm/ajaxhelper-0.8d.apm">
         <owner url="mailto:ham@solutiongrove.com">Hamilton Chua</owner>
-        <summary>Provides helper procs to generate javascript used for Ajax and generating cinematic effects. Includes Scriptaculous (1.6.4) Javascript Libraries and the Yahoo UI Libraries (0.11.4). As of 0.7d, all javascript libraries have been moved to ajaxhelper/www/resources to take advantage of caching.</summary>
+        <summary>Provides helper procs to generate javascript used for Ajax and generating cinematic effects. Includes Scriptaculous (1.6.4) Javascript Libraries and the Yahoo UI Libraries (0.11.4). As of 0.7d, all javascript libraries have been moved to ajaxhelper/www/resources to take advantage of caching. As of 0.8d, the wrappers will now be able to check a global variable to see if the required sources are loaded.</summary>
         <vendor>Solution Grove</vendor>
         <maturity>0</maturity>
 
-        <provides url="ajaxhelper" version="0.7d"/>
+        <provides url="ajaxhelper" version="0.8d"/>
 
         <callbacks>
         </callbacks>
         <parameters>
-        <!-- No version parameters -->
+            <parameter datatype="number"  min_n_values="1"  max_n_values="1"  name="UseMinifiedJs"  default="0" description="Set this parameter to 1 if you want ajaxhelper to load minified versions of the javascript sources whenever possible."/>
         </parameters>
 
     </version>
