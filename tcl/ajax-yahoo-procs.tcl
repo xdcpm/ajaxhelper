@@ -278,6 +278,7 @@ ad_proc -public ah::yui::create_tree {
 	if { ![ah::yui::is_js_sources_loaded -js_source "yahoo"] } { 
 		global ajax_helper_yui_js_sources
 		lappend ajax_helper_yui_js_sources "yahoo"
+		lappend ajax_helper_yui_js_sources "dom"
 		if { ![ah::yui::is_js_sources_loaded -js_source "treeview"] } { 
 			lappend ajax_helper_yui_js_sources "treeview"
 			global yahoo_treeview_css
@@ -317,11 +318,13 @@ ad_proc -private ah::yui::create_tree_node {
 	set script "var od${varname} = {label: \"${label}\", id: \"${varname}\", href: \"${href}\"}; "
 
 	if { [exists_and_not_null attach_to_node] } {
-		set rootvar "node"
+		append script "var node = ${treevarname}.getNodeByProperty('id','${attach_to_node}'); "
+		append script "if ( node == null ) { var node = nd${attach_to_node}; } "
+		
 	} else {
-		set rootvar "${treevarname}root"
+		append script "var node = ${treevarname}root; "
 	}
-	append script "var nd${varname} = new YAHOO.widget.TextNode(od${varname},${rootvar},false); "
+	append script "var nd${varname} = new YAHOO.widget.TextNode(od${varname},node,false); "
 
 	if { [exists_and_not_null dynamic_load] } {
 		append script "nd${varname}.setDynamicLoad(${dynamic_load}); "
