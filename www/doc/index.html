@@ -59,7 +59,7 @@ if { [info exists ajax_helper_js_sources] || [info exists ajax_helper_yui_js_sou
 
 	# if we're using ajax, let's use doc_type strict so we can get
 	# consistent results accross standards compliant browsers
-	set doc_type { < !DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd" > }
+	set doc_type { &#60;!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"&#62; }
 
 	if { [info exists ajax_helper_js_sources] } {
 		append js_sources [ah::load_js_sources -source_list $ajax_helper_js_sources]

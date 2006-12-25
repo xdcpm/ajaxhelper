@@ -8,13 +8,13 @@
     <singleton-p>t</singleton-p>
     <auto-mount>ajax</auto-mount>
 
-    <version name="0.8d" url="http://openacs.org/repository/download/apm/ajaxhelper-0.8d.apm">
+    <version name="0.82d" url="http://openacs.org/repository/download/apm/ajaxhelper-0.82d.apm">
         <owner url="mailto:ham@solutiongrove.com">Hamilton Chua</owner>
-        <summary>Provides helper procs to generate javascript used for Ajax and generating cinematic effects. Includes Scriptaculous (1.6.4) Javascript Libraries and the Yahoo UI Libraries (0.11.4). As of 0.7d, all javascript libraries have been moved to ajaxhelper/www/resources to take advantage of caching. As of 0.8d, the wrappers will now be able to check a global variable to see if the required sources are loaded.</summary>
+        <summary>Provides helper procs to generate javascript used for Ajax and generating cinematic effects. Includes Scriptaculous (1.6.5) Javascript Libraries, dojo Toolkit (0.4.1) and the Yahoo UI Libraries (0.12.1). As of 0.7d, all javascript libraries have been moved to ajaxhelper/www/resources to take advantage of caching. As of 0.8d, the wrappers will now be able to check a global variable to see if the required sources are loaded, this allows helper procs to automatically load the javascript sources you need.</summary>
         <vendor>Solution Grove</vendor>
         <maturity>0</maturity>
 
-        <provides url="ajaxhelper" version="0.8d"/>
+        <provides url="ajaxhelper" version="0.82d"/>
 
         <callbacks>
         </callbacks>
