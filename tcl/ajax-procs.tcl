@@ -176,7 +176,9 @@ ad_proc -private ah::requires {
             }
         } else {
             # TODO : we must return an error/exception, for now just add a notice in the log
-            ns_log Notice "AJAXHELPER : $source is already loaded or not valid"
+	    # Maltes: ACtually you should do nothing, otherwise you cannot call this procedure in helper procedures
+	    # Which may or may not be called multiple times on a page.
+            ns_log Debug "AJAXHELPER : $source is already loaded or not valid"
         }
     }
 }
