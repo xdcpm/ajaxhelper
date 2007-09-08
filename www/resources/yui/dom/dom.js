@@ -1,10 +1,9 @@
 /*
-Copyright (c) 2006, Yahoo! Inc. All rights reserved.
+Copyright (c) 2007, Yahoo! Inc. All rights reserved.
 Code licensed under the BSD License:
 http://developer.yahoo.net/yui/license.txt
-version: 0.12.1
+version: 2.3.0
 */
-
 /**
  * The dom module provides helper methods for manipulating Dom elements.
  * @module dom
@@ -16,54 +15,69 @@ version: 0.12.1
         getStyle,           // for load time browser branching
         setStyle,           // ditto
         id_counter = 0,     // for use with generateId
-        propertyCache = {}; // for faster hyphen converts
-
+        propertyCache = {}, // for faster hyphen converts
+        reClassNameCache = {}; // cache regexes for className
+    
     // brower detection
-    var ua = navigator.userAgent.toLowerCase(),
-        isOpera = (ua.indexOf('opera') > -1),
-        isSafari = (ua.indexOf('safari') > -1),
-        isGecko = (!isOpera && !isSafari && ua.indexOf('gecko') > -1),
-        isIE = (!isOpera && ua.indexOf('msie') > -1);
-
+    var isOpera = YAHOO.env.ua.opera,
+        isSafari = YAHOO.env.ua.webkit, 
+        isGecko = YAHOO.env.ua.gecko,
+        isIE = YAHOO.env.ua.ie; 
+    
     // regex cache
     var patterns = {
-        HYPHEN: /(-[a-z])/i
+        HYPHEN: /(-[a-z])/i, // to normalize get/setStyle
+        ROOT_TAG: /^body|html$/i // body for quirks mode, html for standards
     };
-
 
     var toCamel = function(property) {
         if ( !patterns.HYPHEN.test(property) ) {
             return property; // no hyphens
         }
-
+        
         if (propertyCache[property]) { // already converted
             return propertyCache[property];
         }
-
-        while( patterns.HYPHEN.exec(property) ) {
-            property = property.replace(RegExp.$1,
+       
+        var converted = property;
+ 
+        while( patterns.HYPHEN.exec(converted) ) {
+            converted = converted.replace(RegExp.$1,
                     RegExp.$1.substr(1).toUpperCase());
         }
-
-        propertyCache[property] = property;
-        return property;
+        
+        propertyCache[property] = converted;
+        return converted;
         //return property.replace(/-([a-z])/gi, function(m0, m1) {return m1.toUpperCase()}) // cant use function as 2nd arg yet due to safari bug
+    };
+    
+    var getClassRegEx = function(className) {
+        var re = reClassNameCache[className];
+        if (!re) {
+            re = new RegExp('(?:^|\\s+)' + className + '(?:\\s+|$)');
+            reClassNameCache[className] = re;
+        }
+        return re;
     };
 
     // branching at load instead of runtime
     if (document.defaultView && document.defaultView.getComputedStyle) { // W3C DOM method
         getStyle = function(el, property) {
             var value = null;
+            
+            if (property == 'float') { // fix reserved word
+                property = 'cssFloat';
+            }
 
             var computed = document.defaultView.getComputedStyle(el, '');
             if (computed) { // test computed before touching for safari
                 value = computed[toCamel(property)];
             }
-
+            
             return el.style[property] || value;
         };
     } else if (document.documentElement.currentStyle && isIE) { // IE method
-        getStyle = function(el, property) {
+        getStyle = function(el, property) {                         
             switch( toCamel(property) ) {
                 case 'opacity' :// IE opacity uses filter
                     var val = 100;
@@ -77,8 +91,9 @@ version: 0.12.1
                         }
                     }
                     return val / 100;
-                    break;
-                default:
+                case 'float': // fix reserved word
+                    property = 'styleFloat'; // fall through
+                default: 
                     // test currentStyle before touching
                     var value = el.currentStyle ? el.currentStyle[property] : null;
                     return ( el.style[property] || value );
@@ -87,28 +102,37 @@ version: 0.12.1
     } else { // default to inline only
         getStyle = function(el, property) { return el.style[property]; };
     }
-
+    
     if (isIE) {
         setStyle = function(el, property, val) {
             switch (property) {
                 case 'opacity':
-                    if ( typeof el.style.filter == 'string' ) { // in case not appended
+                    if ( YAHOO.lang.isString(el.style.filter) ) { // in case not appended
                         el.style.filter = 'alpha(opacity=' + val * 100 + ')';
-
+                        
                         if (!el.currentStyle || !el.currentStyle.hasLayout) {
                             el.style.zoom = 1; // when no layout or cant tell
                         }
                     }
                     break;
+                case 'float':
+                    property = 'styleFloat';
                 default:
                 el.style[property] = val;
             }
         };
     } else {
         setStyle = function(el, property, val) {
+            if (property == 'float') {
+                property = 'cssFloat';
+            }
             el.style[property] = val;
         };
     }
+    
+    var testElement = function(node, method) {
+        return node && node.nodeType == 1 && ( !method || method(node) );
+    };
 
     /**
      * Provides helper methods for DOM elements.
@@ -123,27 +147,26 @@ version: 0.12.1
          * @return {HTMLElement | Array} A DOM reference to an HTML element or an array of HTMLElements.
          */
         get: function(el) {
-            if (!el) { return null; } // nothing to work with
-
-            if (typeof el != 'string' && !(el instanceof Array) ) { // assuming HTMLElement or HTMLCollection, so pass back as is
+            if (!el || el.tagName || el.item) { // null, HTMLElement, or HTMLCollection
                 return el;
             }
 
-            if (typeof el == 'string') { // ID
+            if (YAHOO.lang.isString(el)) { // HTMLElement or null
                 return document.getElementById(el);
             }
-            else { // array of ID's and/or elements
-                var collection = [];
+            
+            if (el.splice) { // Array of HTMLElements/IDs
+                var c = [];
                 for (var i = 0, len = el.length; i < len; ++i) {
-                    collection[collection.length] = Y.Dom.get(el[i]);
+                    c[c.length] = Y.Dom.get(el[i]);
                 }
-
-                return collection;
+                
+                return c;
             }
 
-            return null; // safety, should never happen
+            return el; // some other object, just pass it back
         },
-
+    
         /**
          * Normalizes currentStyle and ComputedStyle.
          * @method getStyle
@@ -153,14 +176,14 @@ version: 0.12.1
          */
         getStyle: function(el, property) {
             property = toCamel(property);
-
+            
             var f = function(element) {
                 return getStyle(element, property);
             };
-
+            
             return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+    
         /**
          * Wrapper for setting style properties of HTMLElements.  Normalizes "opacity" across modern browsers.
          * @method setStyle
@@ -170,15 +193,15 @@ version: 0.12.1
          */
         setStyle: function(el, property, val) {
             property = toCamel(property);
-
+            
             var f = function(element) {
                 setStyle(element, property, val);
-
+                
             };
-
+            
             Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
          * Gets the current position of an element based on page coordinates.  Element must be part of the DOM tree to have page coordinates (display:none or elements not appended return false).
          * @method getXY
@@ -187,100 +210,96 @@ version: 0.12.1
          */
         getXY: function(el) {
             var f = function(el) {
-
+    
             // has to be part of document to have pageXY
-                if (el.parentNode === null || el.offsetParent === null ||
-                        this.getStyle(el, 'display') == 'none') {
+                if ( (el.parentNode === null || el.offsetParent === null ||
+                        this.getStyle(el, 'display') == 'none') && el != document.body) {
                     return false;
                 }
-
+                
                 var parentNode = null;
                 var pos = [];
                 var box;
+                var doc = el.ownerDocument; 
 
                 if (el.getBoundingClientRect) { // IE
                     box = el.getBoundingClientRect();
-                    var doc = document;
-                    if ( !this.inDocument(el) && parent.document != document) {// might be in a frame, need to get its scroll
-                        doc = parent.document;
-
-                        if ( !this.isAncestor(doc.documentElement, el) ) {
-                            return false;
-                        }
-
-                    }
-
-                    var scrollTop = Math.max(doc.documentElement.scrollTop, doc.body.scrollTop);
-                    var scrollLeft = Math.max(doc.documentElement.scrollLeft, doc.body.scrollLeft);
-
-                    return [box.left + scrollLeft, box.top + scrollTop];
+                    return [box.left + Y.Dom.getDocumentScrollLeft(el.ownerDocument), box.top + Y.Dom.getDocumentScrollTop(el.ownerDocument)];
                 }
                 else { // safari, opera, & gecko
                     pos = [el.offsetLeft, el.offsetTop];
                     parentNode = el.offsetParent;
+
+                    // safari: if el is abs or any parent is abs, subtract body offsets
+                    var hasAbs = this.getStyle(el, 'position') == 'absolute';
+
                     if (parentNode != el) {
                         while (parentNode) {
                             pos[0] += parentNode.offsetLeft;
                             pos[1] += parentNode.offsetTop;
+                            if (isSafari && !hasAbs && 
+                                    this.getStyle(parentNode,'position') == 'absolute' ) {
+                                hasAbs = true; // we need to offset if any parent is absolutely positioned
+                            }
                             parentNode = parentNode.offsetParent;
                         }
                     }
-                    if (isSafari && this.getStyle(el, 'position') == 'absolute' ) { // safari doubles in some cases
-                        pos[0] -= document.body.offsetLeft;
-                        pos[1] -= document.body.offsetTop;
-                    }
+
+                    if (isSafari && hasAbs) { //safari doubles in this case
+                        pos[0] -= el.ownerDocument.body.offsetLeft;
+                        pos[1] -= el.ownerDocument.body.offsetTop;
+                    } 
                 }
+                
+                parentNode = el.parentNode;
 
-                if (el.parentNode) { parentNode = el.parentNode; }
-                else { parentNode = null; }
-
-                while (parentNode && parentNode.tagName.toUpperCase() != 'BODY' && parentNode.tagName.toUpperCase() != 'HTML')
-                { // account for any scrolled ancestors
-                    if (Y.Dom.getStyle(parentNode, 'display') != 'inline') { // work around opera inline scrollLeft/Top bug
+                // account for any scrolled ancestors
+                while ( parentNode.tagName && !patterns.ROOT_TAG.test(parentNode.tagName) ) 
+                {
+                   // work around opera inline/table scrollLeft/Top bug
+                   if (Y.Dom.getStyle(parentNode, 'display').search(/^inline|table-row.*$/i)) { 
                         pos[0] -= parentNode.scrollLeft;
                         pos[1] -= parentNode.scrollTop;
                     }
-
-                    if (parentNode.parentNode) {
-                        parentNode = parentNode.parentNode;
-                    } else { parentNode = null; }
+                    
+                    parentNode = parentNode.parentNode; 
                 }
-
-
+       
+                
                 return pos;
             };
-
+            
             return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
          * Gets the current X position of an element based on page coordinates.  The element must be part of the DOM tree to have page coordinates (display:none or elements not appended return false).
          * @method getX
          * @param {String | HTMLElement | Array} el Accepts a string to use as an ID, an actual DOM reference, or an Array of IDs and/or HTMLElements
-         * @return {String | Array} The X position of the element(s)
+         * @return {Number | Array} The X position of the element(s)
          */
         getX: function(el) {
             var f = function(el) {
                 return Y.Dom.getXY(el)[0];
             };
-
+            
             return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
          * Gets the current Y position of an element based on page coordinates.  Element must be part of the DOM tree to have page coordinates (display:none or elements not appended return false).
          * @method getY
          * @param {String | HTMLElement | Array} el Accepts a string to use as an ID, an actual DOM reference, or an Array of IDs and/or HTMLElements
-         * @return {String | Array} The Y position of the element(s)
+         * @return {Number | Array} The Y position of the element(s)
          */
         getY: function(el) {
             var f = function(el) {
                 return Y.Dom.getXY(el)[1];
             };
-
+            
             return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
          * Set the position of an html element in page coordinates, regardless of how the element is positioned.
          * The element(s) must be part of the DOM tree to have page coordinates (display:none or elements not appended return false).
@@ -299,39 +318,39 @@ version: 0.12.1
 
                 var pageXY = this.getXY(el);
                 if (pageXY === false) { // has to be part of doc to have pageXY
-                    return false;
+                    return false; 
                 }
-
+                
                 var delta = [ // assuming pixels; if not we will have to retry
                     parseInt( this.getStyle(el, 'left'), 10 ),
                     parseInt( this.getStyle(el, 'top'), 10 )
                 ];
-
+            
                 if ( isNaN(delta[0]) ) {// in case of 'auto'
                     delta[0] = (style_pos == 'relative') ? 0 : el.offsetLeft;
-                }
+                } 
                 if ( isNaN(delta[1]) ) { // in case of 'auto'
                     delta[1] = (style_pos == 'relative') ? 0 : el.offsetTop;
-                }
-
+                } 
+        
                 if (pos[0] !== null) { el.style.left = pos[0] - pageXY[0] + delta[0] + 'px'; }
                 if (pos[1] !== null) { el.style.top = pos[1] - pageXY[1] + delta[1] + 'px'; }
-
+              
                 if (!noRetry) {
                     var newXY = this.getXY(el);
 
-                    // if retry is true, try one more time if we miss
-                   if ( (pos[0] !== null && newXY[0] != pos[0]) ||
+                    // if retry is true, try one more time if we miss 
+                   if ( (pos[0] !== null && newXY[0] != pos[0]) || 
                         (pos[1] !== null && newXY[1] != pos[1]) ) {
                        this.setXY(el, pos, true);
                    }
-                }
-
+                }        
+        
             };
-
+            
             Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
          * Set the X position of an html element in page coordinates, regardless of how the element is positioned.
          * The element must be part of the DOM tree to have page coordinates (display:none or elements not appended return false).
@@ -342,7 +361,7 @@ version: 0.12.1
         setX: function(el, x) {
             Y.Dom.setXY(el, [x, null]);
         },
-
+        
         /**
          * Set the Y position of an html element in page coordinates, regardless of how the element is positioned.
          * The element must be part of the DOM tree to have page coordinates (display:none or elements not appended return false).
@@ -353,7 +372,7 @@ version: 0.12.1
         setY: function(el, y) {
             Y.Dom.setXY(el, [null, y]);
         },
-
+        
         /**
          * Returns the region position of the given element.
          * The element must be part of the DOM tree to have a region (display:none or elements not appended return false).
@@ -363,13 +382,18 @@ version: 0.12.1
          */
         getRegion: function(el) {
             var f = function(el) {
-                var region = new Y.Region.getRegion(el);
+                if ( (el.parentNode === null || el.offsetParent === null ||
+                        this.getStyle(el, 'display') == 'none') && el != document.body) {
+                    return false;
+                }
+
+                var region = Y.Region.getRegion(el);
                 return region;
             };
-
+            
             return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
          * Returns the width of the client (viewport).
          * @method getClientWidth
@@ -379,7 +403,7 @@ version: 0.12.1
         getClientWidth: function() {
             return Y.Dom.getViewportWidth();
         },
-
+        
         /**
          * Returns the height of the client (viewport).
          * @method getClientHeight
@@ -396,12 +420,31 @@ version: 0.12.1
          * @method getElementsByClassName
          * @param {String} className The class name to match against
          * @param {String} tag (optional) The tag name of the elements being collected
-         * @param {String | HTMLElement} root (optional) The HTMLElement or an ID to use as the starting point
+         * @param {String | HTMLElement} root (optional) The HTMLElement or an ID to use as the starting point 
+         * @param {Function} apply (optional) A function to apply to each element when found 
          * @return {Array} An array of elements that have the given class name
          */
-        getElementsByClassName: function(className, tag, root) {
-            var method = function(el) { return Y.Dom.hasClass(el, className); };
-            return Y.Dom.getElementsBy(method, tag, root);
+        getElementsByClassName: function(className, tag, root, apply) {
+            tag = tag || '*';
+            root = (root) ? Y.Dom.get(root) : null || document; 
+            if (!root) {
+                return [];
+            }
+
+            var nodes = [],
+                elements = root.getElementsByTagName(tag),
+                re = getClassRegEx(className);
+
+            for (var i = 0, len = elements.length; i < len; ++i) {
+                if ( re.test(elements[i].className) ) {
+                    nodes[nodes.length] = elements[i];
+                    if (apply) {
+                        apply.call(elements[i], elements[i]);
+                    }
+                }
+            }
+            
+            return nodes;
         },
 
         /**
@@ -412,117 +455,126 @@ version: 0.12.1
          * @return {Boolean | Array} A boolean value or array of boolean values
          */
         hasClass: function(el, className) {
-            var re = new RegExp('(?:^|\\s+)' + className + '(?:\\s+|$)');
+            var re = getClassRegEx(className);
 
             var f = function(el) {
-                return re.test(el['className']);
+                return re.test(el.className);
             };
-
+            
             return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+    
         /**
          * Adds a class name to a given element or collection of elements.
-         * @method addClass
+         * @method addClass         
          * @param {String | HTMLElement | Array} el The element or collection to add the class to
          * @param {String} className the class name to add to the class attribute
          */
         addClass: function(el, className) {
             var f = function(el) {
-                if (this.hasClass(el, className)) { return; } // already present
-
-
-                el['className'] = [el['className'], className].join(' ');
+                if (this.hasClass(el, className)) {
+                    return false; // already present
+                }
+                
+                
+                el.className = YAHOO.lang.trim([el.className, className].join(' '));
+                return true;
             };
-
-            Y.Dom.batch(el, f, Y.Dom, true);
+            
+            return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+    
         /**
          * Removes a class name from a given element or collection of elements.
-         * @method removeClass
+         * @method removeClass         
          * @param {String | HTMLElement | Array} el The element or collection to remove the class from
          * @param {String} className the class name to remove from the class attribute
          */
         removeClass: function(el, className) {
-            var re = new RegExp('(?:^|\\s+)' + className + '(?:\\s+|$)', 'g');
-
+            var re = getClassRegEx(className);
+            
             var f = function(el) {
-                if (!this.hasClass(el, className)) { return; } // not present
+                if (!this.hasClass(el, className)) {
+                    return false; // not present
+                }                 
 
-
-                var c = el['className'];
-                el['className'] = c.replace(re, ' ');
+                
+                var c = el.className;
+                el.className = c.replace(re, ' ');
                 if ( this.hasClass(el, className) ) { // in case of multiple adjacent
                     this.removeClass(el, className);
                 }
 
+                el.className = YAHOO.lang.trim(el.className); // remove any trailing spaces
+                return true;
             };
-
-            Y.Dom.batch(el, f, Y.Dom, true);
+            
+            return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
          * Replace a class with another class for a given element or collection of elements.
          * If no oldClassName is present, the newClassName is simply added.
-         * @method replaceClass
+         * @method replaceClass  
          * @param {String | HTMLElement | Array} el The element or collection to remove the class from
          * @param {String} oldClassName the class name to be replaced
          * @param {String} newClassName the class name that will be replacing the old class name
          */
         replaceClass: function(el, oldClassName, newClassName) {
-            if (oldClassName === newClassName) { // avoid infinite loop
+            if (!newClassName || oldClassName === newClassName) { // avoid infinite loop
                 return false;
             }
-
-            var re = new RegExp('(?:^|\\s+)' + oldClassName + '(?:\\s+|$)', 'g');
+            
+            var re = getClassRegEx(oldClassName);
 
             var f = function(el) {
-
+            
                 if ( !this.hasClass(el, oldClassName) ) {
                     this.addClass(el, newClassName); // just add it if nothing to replace
-                    return; // note return
+                    return true; // NOTE: return
                 }
-
-                el['className'] = el['className'].replace(re, ' ' + newClassName + ' ');
+            
+                el.className = el.className.replace(re, ' ' + newClassName + ' ');
 
                 if ( this.hasClass(el, oldClassName) ) { // in case of multiple adjacent
                     this.replaceClass(el, oldClassName, newClassName);
                 }
+
+                el.className = YAHOO.lang.trim(el.className); // remove any trailing spaces
+                return true;
             };
-
-            Y.Dom.batch(el, f, Y.Dom, true);
+            
+            return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
-         * Generates a unique ID
-         * @method generateId
+         * Returns an ID and applies it to the element "el", if provided.
+         * @method generateId  
          * @param {String | HTMLElement | Array} el (optional) An optional element array of elements to add an ID to (no ID is added if one is already present).
          * @param {String} prefix (optional) an optional prefix to use (defaults to "yui-gen").
          * @return {String | Array} The generated ID, or array of generated IDs (or original ID if already present on an element)
          */
         generateId: function(el, prefix) {
             prefix = prefix || 'yui-gen';
-            el = el || {};
 
             var f = function(el) {
+                if (el && el.id) { // do not override existing ID
+                    return el.id;
+                } 
+
+                var id = prefix + id_counter++;
+
                 if (el) {
-                    el = Y.Dom.get(el);
-                } else {
-                    el = {}; // just generating ID in this case
+                    el.id = id;
                 }
-
-                if (!el.id) {
-                    el.id = prefix + id_counter++;
-                } // dont override existing
-
-
-                return el.id;
+                
+                return id;
             };
 
-            return Y.Dom.batch(el, f, Y.Dom, true);
+            // batch fails when no element, so just generate and return single ID
+            return Y.Dom.batch(el, f, Y.Dom, true) || f.apply(Y.Dom, arguments);
         },
-
+        
         /**
          * Determines whether an HTMLElement is an ancestor of another HTML element in the DOM hierarchy.
          * @method isAncestor
@@ -533,120 +585,112 @@ version: 0.12.1
         isAncestor: function(haystack, needle) {
             haystack = Y.Dom.get(haystack);
             if (!haystack || !needle) { return false; }
-
-            var f = function(needle) {
-                if (haystack.contains && !isSafari) { // safari "contains" is broken
-                    return haystack.contains(needle);
+            
+            var f = function(node) {
+                if (haystack.contains && node.nodeType && !isSafari) { // safari contains is broken
+                    return haystack.contains(node);
                 }
-                else if ( haystack.compareDocumentPosition ) {
-                    return !!(haystack.compareDocumentPosition(needle) & 16);
+                else if ( haystack.compareDocumentPosition && node.nodeType ) {
+                    return !!(haystack.compareDocumentPosition(node) & 16);
+                } else if (node.nodeType) {
+                    // fallback to crawling up (safari)
+                    return !!this.getAncestorBy(node, function(el) {
+                        return el == haystack; 
+                    }); 
                 }
-                else { // loop up and test each parent
-                    var parent = needle.parentNode;
-
-                    while (parent) {
-                        if (parent == haystack) {
-                            return true;
-                        }
-                        else if (!parent.tagName || parent.tagName.toUpperCase() == 'HTML') {
-                            return false;
-                        }
-
-                        parent = parent.parentNode;
-                    }
-                    return false;
-                }
+                return false;
             };
-
-            return Y.Dom.batch(needle, f, Y.Dom, true);
+            
+            return Y.Dom.batch(needle, f, Y.Dom, true);      
         },
-
+        
         /**
          * Determines whether an HTMLElement is present in the current document.
-         * @method inDocument
+         * @method inDocument         
          * @param {String | HTMLElement} el The element to search for
          * @return {Boolean} Whether or not the element is present in the current document
          */
         inDocument: function(el) {
-            var f = function(el) {
+            var f = function(el) { // safari contains fails for body so crawl up
+                if (isSafari) {
+                    while (el = el.parentNode) { // note assignment
+                        if (el == document.documentElement) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
                 return this.isAncestor(document.documentElement, el);
             };
-
+            
             return Y.Dom.batch(el, f, Y.Dom, true);
         },
-
+        
         /**
          * Returns a array of HTMLElements that pass the test applied by supplied boolean method.
          * For optimized performance, include a tag and/or root node when possible.
          * @method getElementsBy
          * @param {Function} method - A boolean method for testing elements which receives the element as its only argument.
-
          * @param {String} tag (optional) The tag name of the elements being collected
-         * @param {String | HTMLElement} root (optional) The HTMLElement or an ID to use as the starting point
+         * @param {String | HTMLElement} root (optional) The HTMLElement or an ID to use as the starting point 
+         * @param {Function} apply (optional) A function to apply to each element when found 
+         * @return {Array} Array of HTMLElements
          */
-        getElementsBy: function(method, tag, root) {
+        getElementsBy: function(method, tag, root, apply) {
             tag = tag || '*';
+            root = (root) ? Y.Dom.get(root) : null || document; 
 
-            var nodes = [];
-
-            if (root) {
-                root = Y.Dom.get(root);
-                if (!root) { // if no root node, then no children
-                    return nodes;
-                }
-            } else {
-                root = document;
+            if (!root) {
+                return [];
             }
 
-            var elements = root.getElementsByTagName(tag);
-
-            if ( !elements.length && (tag == '*' && root.all) ) {
-                elements = root.all; // IE < 6
-            }
-
+            var nodes = [],
+                elements = root.getElementsByTagName(tag);
+            
             for (var i = 0, len = elements.length; i < len; ++i) {
-                if ( method(elements[i]) ) { nodes[nodes.length] = elements[i]; }
+                if ( method(elements[i]) ) {
+                    nodes[nodes.length] = elements[i];
+                    if (apply) {
+                        apply(elements[i]);
+                    }
+                }
             }
 
-
+            
             return nodes;
         },
-
+        
         /**
-         * Returns an array of elements that have had the supplied method applied.
+         * Returns an the method(s) return value(s).
          * The method is called with the element(s) as the first arg, and the optional param as the second ( method(el, o) ).
          * @method batch
          * @param {String | HTMLElement | Array} el (optional) An element or array of elements to apply the method to
          * @param {Function} method The method to apply to the element(s)
          * @param {Any} o (optional) An optional arg that is passed to the supplied method
          * @param {Boolean} override (optional) Whether or not to override the scope of "method" with "o"
-         * @return {HTMLElement | Array} The element(s) with the method applied
+         * @return {Any | Array} The return value(s) from the supplied methods
          */
         batch: function(el, method, o, override) {
-            var id = el;
-            el = Y.Dom.get(el);
+            el = (el && el.tagName) ? el : Y.Dom.get(el); // skip get() when possible
 
+            if (!el || !method) {
+                return false;
+            } 
             var scope = (override) ? o : window;
-
-            if (!el || el.tagName || !el.length) { // is null or not a collection (tagName for SELECT and others that can be both an element and a collection)
-                if (!el) {
-                    return false;
-                }
+            
+            if (el.tagName || (!el.item && !el.slice)) { // not a collection or array, just run the method
                 return method.call(scope, el, o);
-            }
+            } 
 
             var collection = [];
-
+            
             for (var i = 0, len = el.length; i < len; ++i) {
-                if (!el[i]) {
-                    id = el[i];
-                }
                 collection[collection.length] = method.call(scope, el[i], o);
             }
-
+            
             return collection;
         },
-
+        
         /**
          * Returns the height of the document.
          * @method getDocumentHeight
@@ -658,7 +702,7 @@ version: 0.12.1
             var h = Math.max(scrollHeight, Y.Dom.getViewportHeight());
             return h;
         },
-
+        
         /**
          * Returns the width of the document.
          * @method getDocumentWidth
@@ -678,38 +722,313 @@ version: 0.12.1
         getViewportHeight: function() {
             var height = self.innerHeight; // Safari, Opera
             var mode = document.compatMode;
-
+        
             if ( (mode || isIE) && !isOpera ) { // IE, Gecko
                 height = (mode == 'CSS1Compat') ?
                         document.documentElement.clientHeight : // Standards
                         document.body.clientHeight; // Quirks
             }
-
+        
             return height;
         },
-
+        
         /**
          * Returns the current width of the viewport.
          * @method getViewportWidth
          * @return {Int} The width of the viewable area of the page (excludes scrollbars).
          */
-
+        
         getViewportWidth: function() {
             var width = self.innerWidth;  // Safari
             var mode = document.compatMode;
-
+            
             if (mode || isIE) { // IE, Gecko, Opera
                 width = (mode == 'CSS1Compat') ?
                         document.documentElement.clientWidth : // Standards
                         document.body.clientWidth; // Quirks
             }
             return width;
+        },
+
+       /**
+         * Returns the nearest ancestor that passes the test applied by supplied boolean method.
+         * For performance reasons, IDs are not accepted and argument validation omitted.
+         * @method getAncestorBy
+         * @param {HTMLElement} node The HTMLElement to use as the starting point 
+         * @param {Function} method - A boolean method for testing elements which receives the element as its only argument.
+         * @return {Object} HTMLElement or null if not found
+         */
+        getAncestorBy: function(node, method) {
+            while (node = node.parentNode) { // NOTE: assignment
+                if ( testElement(node, method) ) {
+                    return node;
+                }
+            } 
+
+            return null;
+        },
+        
+        /**
+         * Returns the nearest ancestor with the given className.
+         * @method getAncestorByClassName
+         * @param {String | HTMLElement} node The HTMLElement or an ID to use as the starting point 
+         * @param {String} className
+         * @return {Object} HTMLElement
+         */
+        getAncestorByClassName: function(node, className) {
+            node = Y.Dom.get(node);
+            if (!node) {
+                return null;
+            }
+            var method = function(el) { return Y.Dom.hasClass(el, className); };
+            return Y.Dom.getAncestorBy(node, method);
+        },
+
+        /**
+         * Returns the nearest ancestor with the given tagName.
+         * @method getAncestorByTagName
+         * @param {String | HTMLElement} node The HTMLElement or an ID to use as the starting point 
+         * @param {String} tagName
+         * @return {Object} HTMLElement
+         */
+        getAncestorByTagName: function(node, tagName) {
+            node = Y.Dom.get(node);
+            if (!node) {
+                return null;
+            }
+            var method = function(el) {
+                 return el.tagName && el.tagName.toUpperCase() == tagName.toUpperCase();
+            };
+
+            return Y.Dom.getAncestorBy(node, method);
+        },
+
+        /**
+         * Returns the previous sibling that is an HTMLElement. 
+         * For performance reasons, IDs are not accepted and argument validation omitted.
+         * Returns the nearest HTMLElement sibling if no method provided.
+         * @method getPreviousSiblingBy
+         * @param {HTMLElement} node The HTMLElement to use as the starting point 
+         * @param {Function} method A boolean function used to test siblings
+         * that receives the sibling node being tested as its only argument
+         * @return {Object} HTMLElement or null if not found
+         */
+        getPreviousSiblingBy: function(node, method) {
+            while (node) {
+                node = node.previousSibling;
+                if ( testElement(node, method) ) {
+                    return node;
+                }
+            }
+            return null;
+        }, 
+
+        /**
+         * Returns the previous sibling that is an HTMLElement 
+         * @method getPreviousSibling
+         * @param {String | HTMLElement} node The HTMLElement or an ID to use as the starting point 
+         * @return {Object} HTMLElement or null if not found
+         */
+        getPreviousSibling: function(node) {
+            node = Y.Dom.get(node);
+            if (!node) {
+                return null;
+            }
+
+            return Y.Dom.getPreviousSiblingBy(node);
+        }, 
+
+        /**
+         * Returns the next HTMLElement sibling that passes the boolean method. 
+         * For performance reasons, IDs are not accepted and argument validation omitted.
+         * Returns the nearest HTMLElement sibling if no method provided.
+         * @method getNextSiblingBy
+         * @param {HTMLElement} node The HTMLElement to use as the starting point 
+         * @param {Function} method A boolean function used to test siblings
+         * that receives the sibling node being tested as its only argument
+         * @return {Object} HTMLElement or null if not found
+         */
+        getNextSiblingBy: function(node, method) {
+            while (node) {
+                node = node.nextSibling;
+                if ( testElement(node, method) ) {
+                    return node;
+                }
+            }
+            return null;
+        }, 
+
+        /**
+         * Returns the next sibling that is an HTMLElement 
+         * @method getNextSibling
+         * @param {String | HTMLElement} node The HTMLElement or an ID to use as the starting point 
+         * @return {Object} HTMLElement or null if not found
+         */
+        getNextSibling: function(node) {
+            node = Y.Dom.get(node);
+            if (!node) {
+                return null;
+            }
+
+            return Y.Dom.getNextSiblingBy(node);
+        }, 
+
+        /**
+         * Returns the first HTMLElement child that passes the test method. 
+         * @method getFirstChildBy
+         * @param {HTMLElement} node The HTMLElement to use as the starting point 
+         * @param {Function} method A boolean function used to test children
+         * that receives the node being tested as its only argument
+         * @return {Object} HTMLElement or null if not found
+         */
+        getFirstChildBy: function(node, method) {
+            var child = ( testElement(node.firstChild, method) ) ? node.firstChild : null;
+            return child || Y.Dom.getNextSiblingBy(node.firstChild, method);
+        }, 
+
+        /**
+         * Returns the first HTMLElement child. 
+         * @method getFirstChild
+         * @param {String | HTMLElement} node The HTMLElement or an ID to use as the starting point 
+         * @return {Object} HTMLElement or null if not found
+         */
+        getFirstChild: function(node, method) {
+            node = Y.Dom.get(node);
+            if (!node) {
+                return null;
+            }
+            return Y.Dom.getFirstChildBy(node);
+        }, 
+
+        /**
+         * Returns the last HTMLElement child that passes the test method. 
+         * @method getLastChildBy
+         * @param {HTMLElement} node The HTMLElement to use as the starting point 
+         * @param {Function} method A boolean function used to test children
+         * that receives the node being tested as its only argument
+         * @return {Object} HTMLElement or null if not found
+         */
+        getLastChildBy: function(node, method) {
+            if (!node) {
+                return null;
+            }
+            var child = ( testElement(node.lastChild, method) ) ? node.lastChild : null;
+            return child || Y.Dom.getPreviousSiblingBy(node.lastChild, method);
+        }, 
+
+        /**
+         * Returns the last HTMLElement child. 
+         * @method getLastChild
+         * @param {String | HTMLElement} node The HTMLElement or an ID to use as the starting point 
+         * @return {Object} HTMLElement or null if not found
+         */
+        getLastChild: function(node) {
+            node = Y.Dom.get(node);
+            return Y.Dom.getLastChildBy(node);
+        }, 
+
+        /**
+         * Returns an array of HTMLElement childNodes that pass the test method. 
+         * @method getChildrenBy
+         * @param {HTMLElement} node The HTMLElement to start from
+         * @param {Function} method A boolean function used to test children
+         * that receives the node being tested as its only argument
+         * @return {Array} A static array of HTMLElements
+         */
+        getChildrenBy: function(node, method) {
+            var child = Y.Dom.getFirstChildBy(node, method);
+            var children = child ? [child] : [];
+
+            Y.Dom.getNextSiblingBy(child, function(node) {
+                if ( !method || method(node) ) {
+                    children[children.length] = node;
+                }
+                return false; // fail test to collect all children
+            });
+
+            return children;
+        },
+ 
+        /**
+         * Returns an array of HTMLElement childNodes. 
+         * @method getChildren
+         * @param {String | HTMLElement} node The HTMLElement or an ID to use as the starting point 
+         * @return {Array} A static array of HTMLElements
+         */
+        getChildren: function(node) {
+            node = Y.Dom.get(node);
+            if (!node) {
+            }
+
+            return Y.Dom.getChildrenBy(node);
+        },
+ 
+        /**
+         * Returns the left scroll value of the document 
+         * @method getDocumentScrollLeft
+         * @param {HTMLDocument} document (optional) The document to get the scroll value of
+         * @return {Int}  The amount that the document is scrolled to the left
+         */
+        getDocumentScrollLeft: function(doc) {
+            doc = doc || document;
+            return Math.max(doc.documentElement.scrollLeft, doc.body.scrollLeft);
+        }, 
+
+        /**
+         * Returns the top scroll value of the document 
+         * @method getDocumentScrollTop
+         * @param {HTMLDocument} document (optional) The document to get the scroll value of
+         * @return {Int}  The amount that the document is scrolled to the top
+         */
+        getDocumentScrollTop: function(doc) {
+            doc = doc || document;
+            return Math.max(doc.documentElement.scrollTop, doc.body.scrollTop);
+        },
+
+        /**
+         * Inserts the new node as the previous sibling of the reference node 
+         * @method insertBefore
+         * @param {String | HTMLElement} newNode The node to be inserted
+         * @param {String | HTMLElement} referenceNode The node to insert the new node before 
+         * @return {HTMLElement} The node that was inserted (or null if insert fails) 
+         */
+        insertBefore: function(newNode, referenceNode) {
+            newNode = Y.Dom.get(newNode); 
+            referenceNode = Y.Dom.get(referenceNode); 
+            
+            if (!newNode || !referenceNode || !referenceNode.parentNode) {
+                return null;
+            }       
+
+            return referenceNode.parentNode.insertBefore(newNode, referenceNode); 
+        },
+
+        /**
+         * Inserts the new node as the next sibling of the reference node 
+         * @method insertAfter
+         * @param {String | HTMLElement} newNode The node to be inserted
+         * @param {String | HTMLElement} referenceNode The node to insert the new node after 
+         * @return {HTMLElement} The node that was inserted (or null if insert fails) 
+         */
+        insertAfter: function(newNode, referenceNode) {
+            newNode = Y.Dom.get(newNode); 
+            referenceNode = Y.Dom.get(referenceNode); 
+            
+            if (!newNode || !referenceNode || !referenceNode.parentNode) {
+                return null;
+            }       
+
+            if (referenceNode.nextSibling) {
+                return referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling); 
+            } else {
+                return referenceNode.parentNode.appendChild(newNode);
+            }
         }
     };
 })();
 /**
  * A region is a representation of an object on a grid.  It is defined
- * by the top, right, bottom, left extents, so is rectangular by default.  If
+ * by the top, right, bottom, left extents, so is rectangular by default.  If 
  * other shapes are required, this class could be extended to support it.
  * @namespace YAHOO.util
  * @class Region
@@ -727,7 +1046,7 @@ YAHOO.util.Region = function(t, r, b, l) {
      * @type Int
      */
     this.top = t;
-
+    
     /**
      * The region's top extent as index, for symmetry with set/getXY
      * @property 1
@@ -755,7 +1074,7 @@ YAHOO.util.Region = function(t, r, b, l) {
      * @type Int
      */
     this.left = l;
-
+    
     /**
      * The region's left extent as index, for symmetry with set/getXY
      * @property 0
@@ -768,13 +1087,13 @@ YAHOO.util.Region = function(t, r, b, l) {
  * Returns true if this region contains the region passed in
  * @method contains
  * @param  {Region}  region The region to evaluate
- * @return {Boolean}        True if the region is contained with this region,
+ * @return {Boolean}        True if the region is contained with this region, 
  *                          else false
  */
 YAHOO.util.Region.prototype.contains = function(region) {
-    return ( region.left   >= this.left   &&
-             region.right  <= this.right  &&
-             region.top    >= this.top    &&
+    return ( region.left   >= this.left   && 
+             region.right  <= this.right  && 
+             region.top    >= this.top    && 
              region.bottom <= this.bottom    );
 
 };
@@ -799,7 +1118,7 @@ YAHOO.util.Region.prototype.intersect = function(region) {
     var r = Math.min( this.right,  region.right  );
     var b = Math.min( this.bottom, region.bottom );
     var l = Math.max( this.left,   region.left   );
-
+    
     if (b >= t && r >= l) {
         return new YAHOO.util.Region(t, r, b, l);
     } else {
@@ -830,10 +1149,10 @@ YAHOO.util.Region.prototype.union = function(region) {
  */
 YAHOO.util.Region.prototype.toString = function() {
     return ( "Region {"    +
-             "top: "       + this.top    +
-             ", right: "   + this.right  +
-             ", bottom: "  + this.bottom +
-             ", left: "    + this.left   +
+             "top: "       + this.top    + 
+             ", right: "   + this.right  + 
+             ", bottom: "  + this.bottom + 
+             ", left: "    + this.left   + 
              "}" );
 };
 
@@ -857,8 +1176,9 @@ YAHOO.util.Region.getRegion = function(el) {
 
 /////////////////////////////////////////////////////////////////////////////
 
+
 /**
- * A point is a region that is special in that it represents a single point on
+ * A point is a region that is special in that it represents a single point on 
  * the grid.
  * @namespace YAHOO.util
  * @class Point
@@ -868,11 +1188,11 @@ YAHOO.util.Region.getRegion = function(el) {
  * @extends YAHOO.util.Region
  */
 YAHOO.util.Point = function(x, y) {
-   if (x instanceof Array) { // accept output from Dom.getXY
-      y = x[1];
+   if (YAHOO.lang.isArray(x)) { // accept input from Dom.getXY, Event.getXY, etc.
+      y = x[1]; // dont blow away x yet
       x = x[0];
    }
-
+   
     /**
      * The X position of the point, which is also the right, left and index zero (for Dom.getXY symmetry)
      * @property x
@@ -880,7 +1200,7 @@ YAHOO.util.Point = function(x, y) {
      */
 
     this.x = this.right = this.left = this[0] = x;
-
+     
     /**
      * The Y position of the point, which is also the top, bottom and index one (for Dom.getXY symmetry)
      * @property y
@@ -891,3 +1211,4 @@ YAHOO.util.Point = function(x, y) {
 
 YAHOO.util.Point.prototype = new YAHOO.util.Region();
 
+YAHOO.register("dom", YAHOO.util.Dom, {version: "2.3.0", build: "442"});
