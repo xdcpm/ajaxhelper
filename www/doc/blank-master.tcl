@@ -3,7 +3,6 @@ ad_page_contract {
   document to be set through convenient data structures without introducing 
   anything site specific.
 
-  You MUST supply the following variables:
   You should NEVER need to modify this file.  
   
   Most of the time your pages or master templates should not directly set this
@@ -64,14 +63,18 @@ if {[template::util::is_nil doc(type)]} {
     set doc(type) {<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">}
 }
 
+if {![info exists doc(title)]} {
+    set doc(title) "[ad_conn instance_name]"
+    ns_log warning "[ad_conn url] has no doc(title) set."
+}
 if {[template::util::is_nil doc(charset)]} {
-    set doc(charset) [ad_conn charset]
+    set doc(charset) [ns_config ns/parameters OutputCharset [ad_conn charset]]
 }
 
 # The document language is always set from [ad_conn lang] which by default 
 # returns the language setting for the current user.  This is probably
 # not a bad guess, but the rest of OpenACS must override this setting when
-# appropriate and set the lang attribute of tags which differ from the language
+# appropriate and set the lang attribxute of tags which differ from the language
 # of the page.  Otherwise we are lying to the browser.
 set doc(lang) [ad_conn language]
 
@@ -97,6 +100,7 @@ if {[array exists metas]} {
                 $lang
         }
     }
+  unset metas
 }
 
 # Generate the <link /> tag multirow
@@ -114,15 +118,16 @@ if {[array exists links]} {
                 $media
         }
     }
+  unset links
 }
 
 # Generate the head <script /> tag multirow
 variable ::template::head::scripts
-template::multirow create script type src charset defer content
+template::multirow create headscript type src charset defer content
 if {[array exists scripts]} {
     foreach name [array names scripts] {
-        foreach {type src charset script defer} $scripts($name) {
-            template::multirow append script \
+        foreach {type src charset defer content order} $scripts($name) {
+            template::multirow append headscript \
                 $type \
                 $src \
                 $charset \
@@ -130,7 +135,9 @@ if {[array exists scripts]} {
                 $content
         }
     }
+  unset scripts
 }
+
 
 # Generate the body <script /> tag multirow
 variable ::template::body_scripts
@@ -144,6 +151,7 @@ if {[info exists body_scripts]} {
             $defer \
             $content
     }
+  unset body_scripts
 }
 
 # Concatenate the javascript event handlers for the body tag
@@ -169,26 +177,40 @@ foreach {event script} [array get body_handlers] {
  
 # Generate the body headers
 variable ::template::headers
-set header [list]
+set header ""
 if {[info exists headers]} {
-    foreach {type src params} $headers {
+    foreach header_list $headers {
+    set type [lindex $header_list 0]
+    set src [lindex $header_list 1]
+    set params [lindex $header_list 2]
         if {$type eq "literal"} {
-            lappend header $src
-        } else {
-            lappend header [template::adp_include $src $params]
+            append header $src
+        } elseif {$type eq "include"} {
+        set adp_html  [template::adp_include $src $params]
+        if {$adp_html ne ""} {
+        append header $adp_html
+        }
         }
     }
+  unset headers
 }
 
 # Generate the body footers
 variable ::template::footers
-set footer [list]
+set footer ""
 if {[info exists footers]} {
-    foreach {type src params} $footers {
+    foreach footer_list $footers {
+    set type [lindex $footer_list 0]
+    set src [lindex $footer_list 1]
+    set params [lindex $footer_list 2]
         if {$type eq "literal"} {
-            lappend footer $src
+            append footer $src
         } else {
-            lappend footer [template::adp_include $src $params]
+        set adp_html  [template::adp_include $src $params]
+        if {$adp_html ne ""} {
+        lappend footer
+        }
         }
     }
+  unset footers
 }
