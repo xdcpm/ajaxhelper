@@ -123,7 +123,7 @@ if {[array exists links]} {
 
 # Generate the head <script /> tag multirow
 variable ::template::head::scripts
-template::multirow create headscript type src charset defer content
+template::multirow create headscript type src charset defer content order
 if {[array exists scripts]} {
     foreach name [array names scripts] {
         foreach {type src charset defer content order} $scripts($name) {
@@ -132,12 +132,13 @@ if {[array exists scripts]} {
                 $src \
                 $charset \
                 $defer \
-                $content
+                $content \
+                $order
         }
     }
+    template::multirow sort headscript order
   unset scripts
 }
-
 
 # Generate the body <script /> tag multirow
 variable ::template::body_scripts
