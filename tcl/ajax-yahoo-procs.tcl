@@ -648,24 +648,20 @@ ad_proc -public ah::yui::contextmenu {
 
     set jsonlist [ah::yui::menu_list_to_json -lists_of_pairs $menulist]
 
-    set initoptions "trigger: ${triggerel}"
+    set initoptions "trigger: ${triggerel}, lazyload:true"
     if { [exists_and_not_null options] } {
         set options "${initoptions},${options}"
     } else {
         set options "${initoptions}"
     }
 
+    append options ", itemdata: \[${jsonlist}\]"
+
     set script "var $varname = new YAHOO.widget.ContextMenu(\"${id}\", { ${options} } ); "
-    append script "$varname.addItems(\[${jsonlist}\]); "
-    append script "$varname.render(${renderin}); "
 
     global ajax_helper_init_scripts
 
-    append ajax_helper_init_scripts [ah::yui::addlistener \
-        -element "window" \
-        -event "load" \
-        -callback [ah::create_js_function -body ${script}] \
-        -element_is_var ]
+    append ajax_helper_init_scripts ${script}
 
 }
 
