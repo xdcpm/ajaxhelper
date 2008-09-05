@@ -55,7 +55,7 @@ ad_proc -public -callback subsite::get_extra_headers -impl my_implementation {} 
     ${ajax_helper_custom_scripts}
     "
 
-    append js_sources [ah::enclose_in_script -script ${script}]
+    set js_sources "[ah::enclose_in_script -script ${script}] $js_sources"
 
     return $js_sources
 
