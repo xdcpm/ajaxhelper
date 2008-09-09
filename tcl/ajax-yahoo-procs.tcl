@@ -673,6 +673,8 @@ ad_proc -public ah::yui::autocomplete {
     {-delimchar ","}
     {-useiframe "true"}
     {-maxresults "20"}
+    {-forceselection "false"}
+    {-events {}}
 } {
     Generates the javascript to create a YUI autocomplete object from a tcl list
     http://developer.yahoo.com/yui/autocomplete/
@@ -732,11 +734,21 @@ ad_proc -public ah::yui::autocomplete {
         append script "${varname}.maxResultsDisplayed=${maxresults};"
         append script "${varname}.useIFrame=${useiframe};"
         append script "${varname}.delimChar=\"${delimchar}\";"
-        append script "${varname}.doBeforeExpandContainer = function(oTextbox, oContainer, sQuery, aResults) {var pos = YAHOO.util.Dom.getXY(oTextbox);pos\[1\] += YAHOO.util.Dom.get(oTextbox).offsetHeight;YAHOO.util.Dom.setXY(oContainer,pos);YAHOO.util.Dom.setStyle(oContainer,'overflow-y','auto');YAHOO.util.Dom.setStyle(oContainer,'overflow-x','hidden');YAHOO.util.Dom.setStyle(oContainer,'position','absolute');YAHOO.util.Dom.setStyle(oContainer,'height','150px');YAHOO.util.Dom.setStyle(oContainer,'z-index','100');return true;};"
-        append script ${format}
-        append script "${varname}.containerCollapseEvent.subscribe([ah::create_js_function -body "YAHOO.util.Dom.setStyle('${id}', 'height', 0)" -parameters [list "type" "args"] ]);"
-        append script "${varname}.itemArrowToEvent.subscribe([ah::create_js_function -body "elItem\[1\].scrollIntoView(false)" -parameters [list "oSelf" "elItem"] ]); "
-        
+
+        append script "${varname}.forceSelection=\"${forceselection}\";"
+		append script "${varname}.allowBrowserAutocomplete=false;"
+		append script "${varname}.typeAhead=true;"
+		append script ${format}
+
+#        append script "${varname}.doBeforeExpandContainer = function(oTextbox, oContainer, sQuery, aResults) {var pos = YAHOO.util.Dom.getXY(oTextbox);pos\[1\] += YAHOO.util.Dom.get(oTextbox).offsetHeight;YAHOO.util.Dom.setXY(oContainer,pos);YAHOO.util.Dom.setStyle(oContainer,'overflow-y','auto');YAHOO.util.Dom.setStyle(oContainer,'overflow-x','hidden');YAHOO.util.Dom.setStyle(oContainer,'position','absolute');YAHOO.util.Dom.setStyle(oContainer,'height','150px');YAHOO.util.Dom.setStyle(oContainer,'z-index','100');return true;};"
+#        append script ${format}
+#        append script "${varname}.containerCollapseEvent.subscribe([ah::create_js_function -body "YAHOO.util.Dom.setStyle('${id}', 'height', 0)" -parameters [list "type" "args"] ]);"
+#        append script "${varname}.itemArrowToEvent.subscribe([ah::create_js_function -body "elItem\[1\].scrollIntoView(false)" -parameters [list "oSelf" "elItem"] ]); "
+
+         foreach {name value} $events {
+            append script "${varname}.${name}.subscribe${value};\n"
+        }
+       
         # prevent the container from overlapping other elements, e.g. buttons, links
 
 		# remove the yui-ac-input class
@@ -753,3 +765,4 @@ ad_proc -public ah::yui::autocomplete {
     }
 
 }
+
