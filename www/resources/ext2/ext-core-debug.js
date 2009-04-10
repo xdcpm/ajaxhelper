@@ -1,6 +1,6 @@
 /*
- * Ext JS Library 2.0
- * Copyright(c) 2006-2007, Ext JS, LLC.
+ * Ext JS Library 2.2.1
+ * Copyright(c) 2006-2009, Ext JS, LLC.
  * licensing@extjs.com
  * 
  * http://extjs.com/license
@@ -11,14 +11,19 @@ Ext.DomHelper = function(){
     var tempTableEl = null;
     var emptyTags = /^(?:br|frame|hr|img|input|link|meta|range|spacer|wbr|area|param|col)$/i;
     var tableRe = /^table|tbody|tr|td$/i;
-    
-    
-    
+
+    // build as innerHTML where available
     var createHtml = function(o){
         if(typeof o == 'string'){
             return o;
         }
         var b = "";
+        if (Ext.isArray(o)) {
+            for (var i = 0, l = o.length; i < l; i++) {
+                b += createHtml(o[i]);
+            }
+            return b;
+        }
         if(!o.tag){
             o.tag = "div";
         }
@@ -57,15 +62,8 @@ Ext.DomHelper = function(){
             b += ">";
             var cn = o.children || o.cn;
             if(cn){
-                if(cn instanceof Array){
-                    for(var i = 0, len = cn.length; i < len; i++) {
-                        b += createHtml(cn[i], b);
-                    }
-                }else{
-                    b += createHtml(cn, b);
-                }
-            }
-            if(o.html){
+                b += createHtml(cn);
+            } else if(o.html){
                 b += o.html;
             }
             b += "</" + o.tag + ">";
@@ -73,33 +71,36 @@ Ext.DomHelper = function(){
         return b;
     };
 
-    
+    // build as dom
     
     var createDom = function(o, parentNode){
-        var el = document.createElement(o.tag||'div');
-        var useSet = el.setAttribute ? true : false; 
-        for(var attr in o){
-            if(attr == "tag" || attr == "children" || attr == "cn" || attr == "html" || attr == "style" || typeof o[attr] == "function") continue;
-            if(attr=="cls"){
-                el.className = o["cls"];
-            }else{
-                if(useSet) el.setAttribute(attr, o[attr]);
-                else el[attr] = o[attr];
+        var el;
+        if (Ext.isArray(o)) {                       // Allow Arrays of siblings to be inserted
+            el = document.createDocumentFragment(); // in one shot using a DocumentFragment
+            for(var i = 0, l = o.length; i < l; i++) {
+                createDom(o[i], el);
             }
-        }
-        Ext.DomHelper.applyStyles(el, o.style);
-        var cn = o.children || o.cn;
-        if(cn){
-            if(cn instanceof Array){
-                for(var i = 0, len = cn.length; i < len; i++) {
-                    createDom(cn[i], el);
+        } else if (typeof o == "string") {         // Allow a string as a child spec.
+            el = document.createTextNode(o);
+        } else {
+            el = document.createElement(o.tag||'div');
+            var useSet = !!el.setAttribute; // In IE some elements don't have setAttribute
+            for(var attr in o){
+                if(attr == "tag" || attr == "children" || attr == "cn" || attr == "html" || attr == "style" || typeof o[attr] == "function") continue;
+                if(attr=="cls"){
+                    el.className = o["cls"];
+                }else{
+                    if(useSet) el.setAttribute(attr, o[attr]);
+                    else el[attr] = o[attr];
                 }
-            }else{
-                createDom(cn, el);
             }
-        }
-        if(o.html){
-            el.innerHTML = o.html;
+            Ext.DomHelper.applyStyles(el, o.style);
+            var cn = o.children || o.cn;
+            if(cn){
+                createDom(cn, el);
+            } else if(o.html){
+                el.innerHTML = o.html;
+            }
         }
         if(parentNode){
            parentNode.appendChild(el);
@@ -116,7 +117,7 @@ Ext.DomHelper = function(){
         return el;
     };
 
-    
+    // kill repeat to save bytes
     var ts = '<table>',
         te = '</table>',
         tbs = ts+'<tbody>',
@@ -132,7 +133,7 @@ Ext.DomHelper = function(){
         var node;
         var before = null;
         if(tag == 'td'){
-            if(where == 'afterbegin' || where == 'beforeend'){ 
+            if(where == 'afterbegin' || where == 'beforeend'){ // INTO a TD
                 return;
             }
             if(where == 'beforebegin'){
@@ -153,7 +154,7 @@ Ext.DomHelper = function(){
                 before = el.nextSibling;
                 el = el.parentNode;
                 node = ieTable(3, tbs, html, tbe);
-            } else{ 
+            } else{ // INTO a TR
                 if(where == 'afterbegin'){
                     before = el.firstChild;
                 }
@@ -174,8 +175,8 @@ Ext.DomHelper = function(){
                 }
                 node = ieTable(3, tbs, html, tbe);
             }
-        } else{ 
-            if(where == 'beforebegin' || where == 'afterend'){ 
+        } else{ // TABLE
+            if(where == 'beforebegin' || where == 'afterend'){ // OUTSIDE the table
                 return;
             }
             if(where == 'afterbegin'){
@@ -295,7 +296,7 @@ Ext.DomHelper = function(){
         return this.doInsert(el, o, returnElement, "afterBegin", "firstChild");
     },
 
-    
+    // private
     doInsert : function(el, o, returnElement, pos, sibling){
         el = Ext.getDom(el);
         var newNode;
@@ -341,7 +342,7 @@ Ext.DomHelper = function(){
 
 Ext.Template = function(html){
     var a = arguments;
-    if(html instanceof Array){
+    if(Ext.isArray(html)){
         html = html.join("");
     }else if(a.length > 1){
         var buf = [];
@@ -357,7 +358,7 @@ Ext.Template = function(html){
     
     this.html = html;
     if(this.compiled){
-        this.compile();   
+        this.compile();
     }
 };
 Ext.Template.prototype = {
@@ -374,9 +375,9 @@ Ext.Template.prototype = {
                     return tpl.call(format.substr(5), values[name], values);
                 }else{
                     if(args){
-                        
-                        
-                        
+                        // quoted values are required for strings in compiled templates,
+                        // but for non compiled we need to strip them
+                        // quoted reversed for jsmin
                         var re = /^\s*['"](.*)["']\s*$/;
                         args = args.split(',');
                         for(var i = 0, len = args.length; i < len; i++){
@@ -394,7 +395,7 @@ Ext.Template.prototype = {
         };
         return this.html.replace(this.re, fn);
     },
-    
+
     
     set : function(html, compile){
         this.html = html;
@@ -404,13 +405,13 @@ Ext.Template.prototype = {
         }
         return this;
     },
-    
+
     
     disableFormats : false,
-    
+
     
     re : /\{([\w-]+)(?:\:([\w\.]*)(?:\((.*?)?\))?)?\}/g,
-    
+
     
     compile : function(){
         var fm = Ext.util.Format;
@@ -431,7 +432,7 @@ Ext.Template.prototype = {
             return "'"+ sep + format + "values['" + name + "']" + args + ")"+sep+"'";
         };
         var body;
-        
+        // branched to use + in gecko and [].join() in others
         if(Ext.isGecko){
             body = "this.compiled = function(values){ return '" +
                    this.html.replace(/\\/g, '\\\\').replace(/(\r\n|\n)/g, '\\n').replace(/'/g, "\\'").replace(this.re, fn) +
@@ -445,12 +446,12 @@ Ext.Template.prototype = {
         eval(body);
         return this;
     },
-    
-    
+
+    // private function used to call members
     call : function(fnName, value, allValues){
         return this[fnName](value, allValues);
     },
-    
+
     
     insertFirst: function(el, values, returnElement){
         return this.doInsert('afterBegin', el, values, returnElement);
@@ -465,7 +466,7 @@ Ext.Template.prototype = {
     insertAfter : function(el, values, returnElement){
         return this.doInsert('afterEnd', el, values, returnElement);
     },
-    
+
     
     append : function(el, values, returnElement){
         return this.doInsert('beforeEnd', el, values, returnElement);
@@ -487,7 +488,7 @@ Ext.Template.prototype = {
 
 Ext.Template.prototype.apply = Ext.Template.prototype.applyTemplate;
 
-
+// backwards compat
 Ext.DomHelper.Template = Ext.Template;
 
 
@@ -691,13 +692,13 @@ Ext.DomQuery = function(){
         return Ext.DomQuery.pseudos[name](cs, value);
     };
 
-    
-    
-    
+    // This is for IE MSXML which does not support expandos.
+    // IE runs the same speed using setAttribute, however FF slows way down
+    // and Safari completely fails so they need to continue to use expandos.
     var isIE = window.ActiveXObject ? true : false;
 
-    
-    
+    // this eval is stop the compressor from
+    // renaming the variable to something shorter
     eval("var batch = 30803;");
 
     var key = 30803;
@@ -813,13 +814,13 @@ Ext.DomQuery = function(){
             var tklen = tk.length;
             var mm;
 
-            
+            // accept leading mode switch
             var lmode = q.match(modeRe);
             if(lmode && lmode[1]){
                 fn[fn.length] = 'mode="'+lmode[1].replace(trimRe, "")+'";';
                 q = q.replace(lmode[1], "");
             }
-            
+            // strip leading slashes
             while(path.substr(0, 1)=="/"){
                 path = path.substr(1);
             }
@@ -862,7 +863,7 @@ Ext.DomQuery = function(){
                             break;
                         }
                     }
-                    
+                    // prevent infinite loop on bad selector
                     if(!matched){
                         throw 'Error parsing selector, parsing failed at "' + q + '"';
                     }
@@ -934,7 +935,7 @@ Ext.DomQuery = function(){
             if(typeof el == "string"){
                 el = document.getElementById(el);
             }
-            var isArray = (el instanceof Array);
+            var isArray = Ext.isArray(el);
             var result = Ext.DomQuery.filter(isArray ? el : [el], ss);
             return isArray ? (result.length == el.length) : (result.length > 0);
         },
@@ -1204,7 +1205,8 @@ Ext.util.Observable.prototype = {
         return true;
     },
 
-        filterOptRe : /^(?:scope|delay|buffer|single)$/,
+    // private
+    filterOptRe : /^(?:scope|delay|buffer|single)$/,
 
     
     addListener : function(eventName, fn, scope, o){
@@ -1215,9 +1217,11 @@ Ext.util.Observable.prototype = {
                     continue;
                 }
                 if(typeof o[e] == "function"){
-                                        this.addListener(e, o[e], o.scope,  o);
+                    // shared options
+                    this.addListener(e, o[e], o.scope,  o);
                 }else{
-                                        this.addListener(e, o[e].fn, o[e].scope, o[e]);
+                    // individual options
+                    this.addListener(e, o[e].fn, o[e].scope, o[e]);
                 }
             }
             return;
@@ -1249,6 +1253,7 @@ Ext.util.Observable.prototype = {
         }
     },
 
+    
     relayEvents : function(o, events){
         var createHandler = function(ename){
             return function(){
@@ -1270,7 +1275,7 @@ Ext.util.Observable.prototype = {
         if(typeof o == 'string'){
             for(var i = 0, a = arguments, v; v = a[i]; i++){
                 if(!this.events[a[i]]){
-                    o[a[i]] = true;
+                    this.events[a[i]] = true;
                 }
             }
         }else{
@@ -1294,7 +1299,10 @@ Ext.util.Observable.prototype = {
         this.eventsSuspended = false;
     },
 
-                getMethodEvent : function(method){
+    // these are considered experimental
+    // allows for easier interceptor and sequences, including cancelling and overwriting the return value of the call
+    // private
+    getMethodEvent : function(method){
         if(!this.methodEvents){
             this.methodEvents = {};
         }
@@ -1357,12 +1365,14 @@ Ext.util.Observable.prototype = {
         return e;
     },
 
-        beforeMethod : function(method, fn, scope){
+    // adds an "interceptor" called before the original method
+    beforeMethod : function(method, fn, scope){
         var e = this.getMethodEvent(method);
         e.before.push({fn: fn, scope: scope});
     },
 
-        afterMethod : function(method, fn, scope){
+    // adds a "sequence" called after the original method
+    afterMethod : function(method, fn, scope){
         var e = this.getMethodEvent(method);
         e.after.push({fn: fn, scope: scope});
     },
@@ -1436,7 +1446,8 @@ Ext.util.Observable.releaseCapture = function(o){
                 var l = this.createListener(fn, scope, options);
                 if(!this.firing){
                     this.listeners.push(l);
-                }else{                     this.listeners = this.listeners.slice(0);
+                }else{ // if we are currently firing this event, don't disturb the listener loop
+                    this.listeners = this.listeners.slice(0);
                     this.listeners.push(l);
                 }
             }
@@ -1518,6 +1529,85 @@ Ext.EventManager = function(){
     var resizeEvent, resizeTask, textEvent, textSize;
     var E = Ext.lib.Event;
     var D = Ext.lib.Dom;
+    // fix parser confusion
+    var xname = 'Ex' + 't';
+
+    var elHash = {};
+
+    var addListener = function(el, ename, fn, wrap, scope){
+        var id = Ext.id(el);
+        if(!elHash[id]){
+            elHash[id] = {};
+        }
+        var es = elHash[id];
+        if(!es[ename]){
+            es[ename] = [];
+        }
+        var ls = es[ename];
+        ls.push({
+            id: id,
+            ename: ename,
+            fn: fn,
+            wrap: wrap,
+            scope: scope
+        });
+
+         E.on(el, ename, wrap);
+
+        if(ename == "mousewheel" && el.addEventListener){ // workaround for jQuery
+            el.addEventListener("DOMMouseScroll", wrap, false);
+            E.on(window, 'unload', function(){
+                el.removeEventListener("DOMMouseScroll", wrap, false);
+            });
+        }
+        if(ename == "mousedown" && el == document){ // fix stopped mousedowns on the document
+            Ext.EventManager.stoppedMouseDownEvent.addListener(wrap);
+        }
+    }
+
+    var removeListener = function(el, ename, fn, scope){
+        el = Ext.getDom(el);
+
+        var id = Ext.id(el), es = elHash[id], wrap;
+        if(es){
+            var ls = es[ename], l;
+            if(ls){
+                for(var i = 0, len = ls.length; i < len; i++){
+                    l = ls[i];
+                    if(l.fn == fn && (!scope || l.scope == scope)){
+                        wrap = l.wrap;
+                        E.un(el, ename, wrap);
+                        ls.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+        }
+        if(ename == "mousewheel" && el.addEventListener && wrap){
+            el.removeEventListener("DOMMouseScroll", wrap, false);
+        }
+        if(ename == "mousedown" && el == document && wrap){ // fix stopped mousedowns on the document
+            Ext.EventManager.stoppedMouseDownEvent.removeListener(wrap);
+        }
+    }
+
+    var removeAll = function(el){
+        el = Ext.getDom(el);
+        var id = Ext.id(el), es = elHash[id], ls;
+        if(es){
+            for(var ename in es){
+                if(es.hasOwnProperty(ename)){
+                    ls = es[ename];
+                    for(var i = 0, len = ls.length; i < len; i++){
+                        E.un(el, ename, ls[i].wrap);
+                        ls[i] = null;
+                    }
+                }
+                es[ename] = null;
+            }
+            delete elHash[id];
+        }
+    }
 
 
     var fireDocReady = function(){
@@ -1564,29 +1654,29 @@ Ext.EventManager = function(){
                  }
             }, 10);
         }
-        
+        // no matter what, make sure it fires on load
         E.on(window, "load", fireDocReady);
     };
 
     var createBuffered = function(h, o){
         var task = new Ext.util.DelayedTask(h);
         return function(e){
-            
+            // create new event object impl so new events don't wipe out properties
             e = new Ext.EventObjectImpl(e);
             task.delay(o.buffer, h, null, [e]);
         };
     };
 
-    var createSingle = function(h, el, ename, fn){
+    var createSingle = function(h, el, ename, fn, scope){
         return function(e){
-            Ext.EventManager.removeListener(el, ename, fn);
+            Ext.EventManager.removeListener(el, ename, fn, scope);
             h(e);
         };
     };
 
     var createDelayed = function(h, o){
         return function(e){
-            
+            // create new event object impl so new events don't wipe out properties
             e = new Ext.EventObjectImpl(e);
             setTimeout(function(){
                 h(e);
@@ -1602,6 +1692,10 @@ Ext.EventManager = function(){
             throw "Error listening for \"" + ename + '\". Element "' + element + '" doesn\'t exist.';
         }
         var h = function(e){
+            // prevent errors while unload occurring
+            if(!window[xname]){
+                return;
+            }
             e = Ext.EventObject.setEvent(e);
             var t;
             if(o.delegate){
@@ -1632,47 +1726,14 @@ Ext.EventManager = function(){
             h = createDelayed(h, o);
         }
         if(o.single){
-            h = createSingle(h, el, ename, fn);
+            h = createSingle(h, el, ename, fn, scope);
         }
         if(o.buffer){
             h = createBuffered(h, o);
         }
-        fn._handlers = fn._handlers || [];
-        fn._handlers.push([Ext.id(el), ename, h]);
 
-        E.on(el, ename, h);
-        if(ename == "mousewheel" && el.addEventListener){ 
-            el.addEventListener("DOMMouseScroll", h, false);
-            E.on(window, 'unload', function(){
-                el.removeEventListener("DOMMouseScroll", h, false);
-            });
-        }
-        if(ename == "mousedown" && el == document){ 
-            Ext.EventManager.stoppedMouseDownEvent.addListener(h);
-        }
+        addListener(el, ename, fn, h, scope);
         return h;
-    };
-
-    var stopListening = function(el, ename, fn){
-        var id = Ext.id(el), hds = fn._handlers, hd = fn;
-        if(hds){
-            for(var i = 0, len = hds.length; i < len; i++){
-                var h = hds[i];
-                if(h[0] == id && h[1] == ename){
-                    hd = h[2];
-                    hds.splice(i, 1);
-                    break;
-                }
-            }
-        }
-        E.un(el, ename, hd);
-        el = Ext.getDom(el);
-        if(ename == "mousewheel" && el.addEventListener){
-            el.removeEventListener("DOMMouseScroll", hd, false);
-        }
-        if(ename == "mousedown" && el == document){ 
-            Ext.EventManager.stoppedMouseDownEvent.removeListener(hd);
-        }
     };
 
     var propRe = /^(?:scope|delay|buffer|single|stopEvent|preventDefault|stopPropagation|normalized|args|delegate)$/;
@@ -1687,10 +1748,10 @@ Ext.EventManager = function(){
                         continue;
                     }
                     if(typeof o[e] == "function"){
-                        
+                        // shared options
                         listen(element, e, o, o[e], o.scope);
                     }else{
-                        
+                        // individual options
                         listen(element, e, o[e]);
                     }
                 }
@@ -1700,13 +1761,18 @@ Ext.EventManager = function(){
         },
 
         
-        removeListener : function(element, eventName, fn){
-            return stopListening(element, eventName, fn);
+        removeListener : function(element, eventName, fn, scope){
+            return removeListener(element, eventName, fn, scope);
+        },
+
+        
+        removeAll : function(element){
+            return removeAll(element);
         },
 
         
         onDocumentReady : function(fn, scope, options){
-            if(docReadyState){ 
+            if(docReadyState){ // if it already fired
                 docReadyEvent.addListener(fn, scope, options);
                 docReadyEvent.fire();
                 docReadyEvent.clearListeners();
@@ -1715,22 +1781,29 @@ Ext.EventManager = function(){
             if(!docReadyEvent){
                 initDocReady();
             }
+            options = options || {};
+            if(!options.delay){
+                options.delay = 1;
+            }
             docReadyEvent.addListener(fn, scope, options);
+        },
+        
+        // private
+        doResizeEvent: function(){
+            resizeEvent.fire(D.getViewWidth(), D.getViewHeight());
         },
 
         
         onWindowResize : function(fn, scope, options){
             if(!resizeEvent){
                 resizeEvent = new Ext.util.Event();
-                resizeTask = new Ext.util.DelayedTask(function(){
-                    resizeEvent.fire(D.getViewWidth(), D.getViewHeight());
-                });
+                resizeTask = new Ext.util.DelayedTask(this.doResizeEvent);
                 E.on(window, "resize", this.fireWindowResize, this);
             }
             resizeEvent.addListener(fn, scope, options);
         },
 
-        
+        // exposed only to allow manual firing
         fireWindowResize : function(){
             if(resizeEvent){
                 if((Ext.isIE||Ext.isAir) && resizeTask){
@@ -1766,7 +1839,7 @@ Ext.EventManager = function(){
             }
         },
 
-        
+        // private
         fireResize : function(){
             if(resizeEvent){
                 resizeEvent.fire(D.getViewWidth(), D.getViewHeight());
@@ -1788,53 +1861,64 @@ Ext.EventManager = function(){
 
 Ext.onReady = Ext.EventManager.onDocumentReady;
 
-Ext.onReady(function(){
-    var bd = Ext.getBody();
-    if(!bd){ return; }
 
-    var cls = [
-            Ext.isIE ? "ext-ie " + (Ext.isIE6 ? 'ext-ie6' : 'ext-ie7')
-            : Ext.isGecko ? "ext-gecko"
-            : Ext.isOpera ? "ext-opera"
-            : Ext.isSafari ? "ext-safari" : ""];
+// Initialize doc classes
+(function(){
+    var initExtCss = function(){
+        // find the body element
+        var bd = document.body || document.getElementsByTagName('body')[0];
+        if(!bd){ return false; }
+        var cls = [' ',
+                Ext.isIE ? "ext-ie " + (Ext.isIE6 ? 'ext-ie6' : (Ext.isIE7 ? 'ext-ie7' : 'ext-ie8'))
+                : Ext.isGecko ? "ext-gecko " + (Ext.isGecko2 ? 'ext-gecko2' : 'ext-gecko3')
+                : Ext.isOpera ? "ext-opera"
+                : Ext.isSafari ? "ext-safari"
+                : Ext.isChrome ? "ext-chrome" : ""];
 
-    if(Ext.isMac){
-        cls.push("ext-mac");
-    }
-    if(Ext.isLinux){
-        cls.push("ext-linux");
-    }
-    if(Ext.isBorderBox){
-        cls.push('ext-border-box');
-    }
-    if(Ext.isStrict){ 
-        var p = bd.dom.parentNode;
-        if(p){
-            p.className += ' ext-strict';
+        if(Ext.isMac){
+            cls.push("ext-mac");
         }
+        if(Ext.isLinux){
+            cls.push("ext-linux");
+        }
+        if(Ext.isBorderBox){
+            cls.push('ext-border-box');
+        }
+        if(Ext.isStrict){ // add to the parent to allow for selectors like ".ext-strict .ext-ie"
+            var p = bd.parentNode;
+            if(p){
+                p.className += ' ext-strict';
+            }
+        }
+        bd.className += cls.join(' ');
+        return true;
     }
-    bd.addClass(cls.join(' '));
-});
+
+    if(!initExtCss()){
+        Ext.onReady(initExtCss);
+    }
+})();
 
 
 Ext.EventObject = function(){
 
     var E = Ext.lib.Event;
 
-    
+    // safari keypress events for special keys return bad keycodes
     var safariKeys = {
-        63234 : 37, 
-        63235 : 39, 
-        63232 : 38, 
-        63233 : 40, 
-        63276 : 33, 
-        63277 : 34, 
-        63272 : 46, 
-        63273 : 36, 
-        63275 : 35  
+        3 : 13, // enter
+        63234 : 37, // left
+        63235 : 39, // right
+        63232 : 38, // up
+        63233 : 40, // down
+        63276 : 33, // page up
+        63277 : 34, // page down
+        63272 : 46, // delete
+        63273 : 36, // home
+        63275 : 35  // end
     };
 
-    
+    // normalize button clicks
     var btnMap = Ext.isIE ? {1:0,4:1,2:2} :
                 (Ext.isSafari ? {1:0,2:1,3:2} : {0:0,1:1,2:2});
 
@@ -1843,6 +1927,7 @@ Ext.EventObject = function(){
             this.setEvent(e.browserEvent || e);
         }
     };
+
     Ext.EventObjectImpl.prototype = {
         
         browserEvent : null,
@@ -1856,65 +1941,206 @@ Ext.EventObject = function(){
         altKey : false,
 
         
-        BACKSPACE : 8,
+        BACKSPACE: 8,
         
-        TAB : 9,
+        TAB: 9,
         
-        RETURN : 13,
+        NUM_CENTER: 12,
         
-        ENTER : 13,
+        ENTER: 13,
         
-        SHIFT : 16,
+        RETURN: 13,
         
-        CONTROL : 17,
+        SHIFT: 16,
         
-        ESC : 27,
+        CTRL: 17,
+        CONTROL : 17, // legacy
         
-        SPACE : 32,
+        ALT: 18,
         
-        PAGEUP : 33,
+        PAUSE: 19,
         
-        PAGEDOWN : 34,
+        CAPS_LOCK: 20,
         
-        END : 35,
+        ESC: 27,
         
-        HOME : 36,
+        SPACE: 32,
         
-        LEFT : 37,
+        PAGE_UP: 33,
+        PAGEUP : 33, // legacy
         
-        UP : 38,
+        PAGE_DOWN: 34,
+        PAGEDOWN : 34, // legacy
         
-        RIGHT : 39,
+        END: 35,
         
-        DOWN : 40,
+        HOME: 36,
         
-        DELETE : 46,
+        LEFT: 37,
         
-        F5 : 116,
+        UP: 38,
+        
+        RIGHT: 39,
+        
+        DOWN: 40,
+        
+        PRINT_SCREEN: 44,
+        
+        INSERT: 45,
+        
+        DELETE: 46,
+        
+        ZERO: 48,
+        
+        ONE: 49,
+        
+        TWO: 50,
+        
+        THREE: 51,
+        
+        FOUR: 52,
+        
+        FIVE: 53,
+        
+        SIX: 54,
+        
+        SEVEN: 55,
+        
+        EIGHT: 56,
+        
+        NINE: 57,
+        
+        A: 65,
+        
+        B: 66,
+        
+        C: 67,
+        
+        D: 68,
+        
+        E: 69,
+        
+        F: 70,
+        
+        G: 71,
+        
+        H: 72,
+        
+        I: 73,
+        
+        J: 74,
+        
+        K: 75,
+        
+        L: 76,
+        
+        M: 77,
+        
+        N: 78,
+        
+        O: 79,
+        
+        P: 80,
+        
+        Q: 81,
+        
+        R: 82,
+        
+        S: 83,
+        
+        T: 84,
+        
+        U: 85,
+        
+        V: 86,
+        
+        W: 87,
+        
+        X: 88,
+        
+        Y: 89,
+        
+        Z: 90,
+        
+        CONTEXT_MENU: 93,
+        
+        NUM_ZERO: 96,
+        
+        NUM_ONE: 97,
+        
+        NUM_TWO: 98,
+        
+        NUM_THREE: 99,
+        
+        NUM_FOUR: 100,
+        
+        NUM_FIVE: 101,
+        
+        NUM_SIX: 102,
+        
+        NUM_SEVEN: 103,
+        
+        NUM_EIGHT: 104,
+        
+        NUM_NINE: 105,
+        
+        NUM_MULTIPLY: 106,
+        
+        NUM_PLUS: 107,
+        
+        NUM_MINUS: 109,
+        
+        NUM_PERIOD: 110,
+        
+        NUM_DIVISION: 111,
+        
+        F1: 112,
+        
+        F2: 113,
+        
+        F3: 114,
+        
+        F4: 115,
+        
+        F5: 116,
+        
+        F6: 117,
+        
+        F7: 118,
+        
+        F8: 119,
+        
+        F9: 120,
+        
+        F10: 121,
+        
+        F11: 122,
+        
+        F12: 123,
 
            
         setEvent : function(e){
-            if(e == this || (e && e.browserEvent)){ 
+            if(e == this || (e && e.browserEvent)){ // already wrapped
                 return e;
             }
             this.browserEvent = e;
             if(e){
-                
+                // normalize buttons
                 this.button = e.button ? btnMap[e.button] : (e.which ? e.which-1 : -1);
                 if(e.type == 'click' && this.button == -1){
                     this.button = 0;
                 }
                 this.type = e.type;
                 this.shiftKey = e.shiftKey;
-                
+                // mac metaKey behaves like ctrlKey
                 this.ctrlKey = e.ctrlKey || e.metaKey;
                 this.altKey = e.altKey;
-                
+                // in getKey these will be normalized for the mac
                 this.keyCode = e.keyCode;
                 this.charCode = e.charCode;
-                
+                // cache the target for the delayed and or buffered events
                 this.target = E.getTarget(e);
-                
+                // same for XY
                 this.xy = E.getXY(e);
             }else{
                 this.button = -1;
@@ -1922,7 +2148,7 @@ Ext.EventObject = function(){
                 this.ctrlKey = false;
                 this.altKey = false;
                 this.keyCode = 0;
-                this.charCode =0;
+                this.charCode = 0;
                 this.target = null;
                 this.xy = [0, 0];
             }
@@ -1962,6 +2188,7 @@ Ext.EventObject = function(){
             (k >= 36 && k <= 39) ||
             (k >= 44 && k <= 45);
         },
+
         
         stopPropagation : function(){
             if(this.browserEvent){
@@ -2008,10 +2235,9 @@ Ext.EventObject = function(){
 
         
         getTarget : function(selector, maxDepth, returnEl){
-        	var t = Ext.get(this.target);
-            return selector ? t.findParent(selector, maxDepth, returnEl) : (returnEl ? t : this.target);
+            return selector ? Ext.fly(this.target).findParent(selector, maxDepth, returnEl) : (returnEl ? Ext.get(this.target) : this.target);
         },
-        
+
         
         getRelatedTarget : function(){
             if(this.browserEvent){
@@ -2038,9 +2264,9 @@ Ext.EventObject = function(){
         },
 
         
-        within : function(el, related){
+        within : function(el, related, allowEl){
             var t = this[related ? "getRelatedTarget" : "getTarget"]();
-            return t && Ext.fly(el).contains(t);
+            return t && ((allowEl ? (t === Ext.getDom(el)) : false) || Ext.fly(el).contains(t));
         },
 
         getPoint : function(){
@@ -2056,7 +2282,7 @@ var D = Ext.lib.Dom;
 var E = Ext.lib.Event;
 var A = Ext.lib.Anim;
 
-
+// local style camelizing for speed
 var propCache = {};
 var camelRe = /(-[a-z])/gi;
 var camelFn = function(m, a){ return a.charAt(1).toUpperCase(); };
@@ -2065,11 +2291,11 @@ var view = document.defaultView;
 Ext.Element = function(element, forceNew){
     var dom = typeof element == "string" ?
             document.getElementById(element) : element;
-    if(!dom){ 
+    if(!dom){ // invalid id/element
         return null;
     }
     var id = dom.id;
-    if(forceNew !== true && id && Ext.Element.cache[id]){ 
+    if(forceNew !== true && id && Ext.Element.cache[id]){ // element object already exists
         return Ext.Element.cache[id];
     }
 
@@ -2162,7 +2388,7 @@ El.prototype = {
         return anim;
     },
 
-    
+    // private legacy anim prep
     preanim : function(a, i){
         return !a[i] ? false : (typeof a[i] == "object" ? a[i]: {duration: a[i+1], callback: a[i+2], easing: a[i+3]});
     },
@@ -2209,7 +2435,7 @@ El.prototype = {
         }else if(b > cb){
             c.scrollTop = b-ch;
         }
-        c.scrollTop = c.scrollTop; 
+        c.scrollTop = c.scrollTop; // corrects IE, other browsers will ignore
 
         if(hscroll !== false){
 			if(el.offsetWidth > c.clientWidth || l < cl){
@@ -2222,7 +2448,7 @@ El.prototype = {
         return this;
     },
 
-    
+    // private
     scrollChildIntoView : function(child, hscroll){
         Ext.fly(child, '_scrollChildIntoView').scrollIntoView(this, hscroll);
     },
@@ -2231,9 +2457,9 @@ El.prototype = {
     autoHeight : function(animate, duration, onComplete, easing){
         var oldHeight = this.getHeight();
         this.clip();
-        this.setHeight(1); 
+        this.setHeight(1); // force clipping
         setTimeout(function(){
-            var height = parseInt(this.dom.scrollHeight, 10); 
+            var height = parseInt(this.dom.scrollHeight, 10); // parseInt for Safari
             if(!animate){
                 this.setHeight(height);
                 this.unclip();
@@ -2241,7 +2467,7 @@ El.prototype = {
                     onComplete();
                 }
             }else{
-                this.setHeight(oldHeight); 
+                this.setHeight(oldHeight); // restore original height
                 this.setHeight(height, animate, duration, function(){
                     this.unclip();
                     if(typeof onComplete == "function") onComplete();
@@ -2279,7 +2505,7 @@ El.prototype = {
     },
 
     
-    query : function(selector, unique){
+    query : function(selector){
         return Ext.DomQuery.select(selector, this.dom);
     },
 
@@ -2323,7 +2549,7 @@ El.prototype = {
                 this.dom.style.visibility = visible ? "visible" : "hidden";
             }
         }else{
-            
+            // closure for composites
             var dom = this.dom;
             var visMode = this.visibilityMode;
             if(visible){
@@ -2384,7 +2610,7 @@ El.prototype = {
 
     
     addClass : function(className){
-        if(className instanceof Array){
+        if(Ext.isArray(className)){
             for(var i = 0, len = className.length; i < len; i++) {
             	this.addClass(className[i]);
             }
@@ -2414,7 +2640,7 @@ El.prototype = {
         if(!className || !this.dom.className){
             return this;
         }
-        if(className instanceof Array){
+        if(Ext.isArray(className)){
             for(var i = 0, len = className.length; i < len; i++) {
             	this.removeClass(className[i]);
             }
@@ -2432,7 +2658,7 @@ El.prototype = {
         return this;
     },
 
-    
+    // private
     classReCache: {},
 
     
@@ -2714,7 +2940,7 @@ El.prototype = {
         return asNumber ? parseInt(this.dom.value, 10) : this.dom.value;
     },
 
-    
+    // private
     adjustWidth : function(width){
         if(typeof width == "number"){
             if(this.autoBoxAdjust && !this.isBorderBox()){
@@ -2727,7 +2953,7 @@ El.prototype = {
         return width;
     },
 
-    
+    // private
     adjustHeight : function(height){
         if(typeof height == "number"){
            if(this.autoBoxAdjust && !this.isBorderBox()){
@@ -2764,7 +2990,7 @@ El.prototype = {
 
     
      setSize : function(width, height, animate){
-        if(typeof width == "object"){ 
+        if(typeof width == "object"){ // in case of object from getSize()
             height = width.height; width = width.width;
         }
         width = this.adjustWidth(width); height = this.adjustHeight(height);
@@ -2802,14 +3028,14 @@ El.prototype = {
     },
 
     
-    removeListener : function(eventName, fn){
-        Ext.EventManager.removeListener(this.dom,  eventName, fn);
+    removeListener : function(eventName, fn, scope){
+        Ext.EventManager.removeListener(this.dom,  eventName, fn, scope || this);
         return this;
     },
 
     
     removeAllListeners : function(){
-        E.purgeElement(this.dom);
+        Ext.EventManager.removeAll(this.dom);
         return this;
     },
 
@@ -2944,16 +3170,26 @@ El.prototype = {
         return this;
     },
 
-    
+    // private
     fixDisplay : function(){
         if(this.getStyle("display") == "none"){
             this.setStyle("visibility", "hidden");
-            this.setStyle("display", this.originalDisplay); 
-            if(this.getStyle("display") == "none"){ 
+            this.setStyle("display", this.originalDisplay); // first try reverting to default
+            if(this.getStyle("display") == "none"){ // if that fails, default to block
                 this.setStyle("display", "block");
             }
         }
     },
+
+    // private
+	setOverflow : function(v){
+    	if(v=='auto' && Ext.isMac && Ext.isGecko2){ // work around stupid FF 2.0/Mac scroll bar bug
+    		this.dom.style.overflow = 'hidden';
+        	(function(){this.dom.style.overflow = 'auto';}).defer(1, this);
+    	}else{
+    		this.dom.style.overflow = v;
+    	}
+	},
 
     
      setLeftTop : function(left, top){
@@ -3020,8 +3256,8 @@ El.prototype = {
 
     
     getAnchorXY : function(anchor, local, s){
-        
-        
+        //Passing a different size is useful for pre-calculating anchors,
+        //especially for anchored animations that change the el size.
 
         var w, h, vp = false;
         if(!s){
@@ -3081,7 +3317,7 @@ El.prototype = {
             var sc = this.getScroll();
             return [x + sc.left, y + sc.top];
         }
-        
+        //Add the element's offset xy
         var o = this.getXY();
         return [x+o[0], y+o[1]];
     },
@@ -3093,7 +3329,7 @@ El.prototype = {
             throw "Element.alignToXY with an element that doesn't exist";
         }
         var d = this.dom;
-        var c = false; 
+        var c = false; //constrain to viewport
         var p1 = "", p2 = "";
         o = o || [0,0];
 
@@ -3111,8 +3347,8 @@ El.prototype = {
         }
         p1 = m[1]; p2 = m[2]; c = !!m[3];
 
-        
-        
+        //Subtract the aligned el's internal xy from the target's offset xy
+        //plus custom offset to get the aligned el's new offset xy
         var a1 = this.getAnchorXY(p1, true);
         var a2 = el.getAnchorXY(p2, false);
 
@@ -3120,14 +3356,14 @@ El.prototype = {
         var y = a2[1] - a1[1] + o[1];
 
         if(c){
-            
+            //constrain the aligned el to viewport if necessary
             var w = this.getWidth(), h = this.getHeight(), r = el.getRegion();
-            
+            // 5px of margin for ie
             var dw = D.getViewWidth()-5, dh = D.getViewHeight()-5;
 
-            
-            
-            
+            //If we are at a viewport boundary and the aligned el is anchored on a target border that is
+            //perpendicular to the vp border, allow the aligned el to slide on that border,
+            //otherwise swap the aligned el to the opposite border of the target.
             var p1y = p1.charAt(0), p1x = p1.charAt(p1.length-1);
            var p2y = p2.charAt(0), p2x = p2.charAt(p2.length-1);
            var swapY = ((p1y=="t" && p2y=="b") || (p1y=="b" && p2y=="t"));
@@ -3153,7 +3389,7 @@ El.prototype = {
         return [x,y];
     },
 
-    
+    // private
     getConstrainToXY : function(){
         var os = {top:0, left:0, bottom:0, right: 0};
 
@@ -3190,10 +3426,10 @@ El.prototype = {
             var x = xy[0], y = xy[1];
             var w = this.dom.offsetWidth, h = this.dom.offsetHeight;
 
-            
+            // only move it if it needs it
             var moved = false;
 
-            
+            // first validate right/bottom
             if((x + w) > vr){
                 x = vr - w;
                 moved = true;
@@ -3202,7 +3438,7 @@ El.prototype = {
                 y = vb - h;
                 moved = true;
             }
-            
+            // then make sure top/left isn't negative
             if(x < vx){
                 x = vx;
                 moved = true;
@@ -3215,7 +3451,7 @@ El.prototype = {
         };
     }(),
 
-    
+    // private
     adjustForConstraints : function(xy, parent, offsets){
         return this.getConstrainToXY(parent || document, false, offsets, xy) ||  xy;
     },
@@ -3239,7 +3475,7 @@ El.prototype = {
             Ext.EventManager.on(window, 'scroll', action, this,
                 {buffer: tm == 'number' ? monitorScroll : 50});
         }
-        action.call(this); 
+        action.call(this); // align immediately
         return this;
     },
     
@@ -3431,7 +3667,7 @@ El.prototype = {
          }
     },
 
-    
+    // private
     addStyles : function(sides, styles){
         var val = 0, v, w;
         for(var i = 0, len = sides.length; i < len; i++){
@@ -3464,7 +3700,7 @@ El.prototype = {
     
     mask : function(msg, msgCls){
         if(this.getStyle("position") == "static"){
-            this.setStyle("position", "relative");
+            this.addClass("x-masked-relative");
         }
         if(this._maskMsg){
             this._maskMsg.remove();
@@ -3485,8 +3721,8 @@ El.prototype = {
             mm.setDisplayed(true);
             mm.center(this);
         }
-        if(Ext.isIE && !(Ext.isIE7 && Ext.isStrict) && this.getStyle('height') == 'auto'){ 
-            this._mask.setSize(this.dom.clientWidth, this.getHeight());
+        if(Ext.isIE && !(Ext.isIE7 && Ext.isStrict) && this.getStyle('height') == 'auto'){ // ie will not expand full height automatically
+            this._mask.setSize(this.getWidth(), this.getHeight());
         }
         return this._mask;
     },
@@ -3501,7 +3737,7 @@ El.prototype = {
             this._mask.remove();
             delete this._mask;
         }
-        this.removeClass("x-masked");
+        this.removeClass(["x-masked", "x-masked-relative"]);
     },
 
     
@@ -3512,7 +3748,7 @@ El.prototype = {
     
     createShim : function(){
         var el = document.createElement('iframe');
-        el.frameBorder = 'no';
+        el.frameBorder = '0';
         el.className = 'ext-shim';
         if(Ext.isIE && Ext.isSecure){
             el.src = Ext.SSL_SECURE_URL;
@@ -3546,7 +3782,7 @@ El.prototype = {
     },
 
     
-    addClassOnOver : function(className, preventFlicker){
+    addClassOnOver : function(className){
         this.hover(
             function(){
                 Ext.fly(this, '_internal').addClass(className);
@@ -3591,7 +3827,7 @@ El.prototype = {
                 e.preventDefault();
             }
         };
-        if(eventName instanceof Array){
+        if(Ext.isArray(eventName)){
             for(var i = 0, len = eventName.length; i < len; i++){
                  this.on(eventName[i], fn);
             }
@@ -3678,7 +3914,7 @@ El.prototype = {
     
     insertFirst: function(el, returnDom){
         el = el || {};
-        if(typeof el == 'object' && !el.nodeType){ 
+        if(typeof el == 'object' && !el.nodeType && !el.dom){ // dh config
             return this.createChild(el, this.dom.firstChild, returnDom);
         }else{
             el = Ext.getDom(el);
@@ -3690,7 +3926,7 @@ El.prototype = {
     
     insertSibling: function(el, where, returnDom){
         var rt;
-        if(el instanceof Array){
+        if(Ext.isArray(el)){
             for(var i = 0, len = el.length; i < len; i++){
                 rt = this.insertSibling(el[i], where, returnDom);
             }
@@ -3700,7 +3936,7 @@ El.prototype = {
         el = el || {};
         var refNode = where == 'before' ? this.dom : this.dom.nextSibling;
 
-        if(typeof el == 'object' && !el.nodeType){ 
+        if(typeof el == 'object' && !el.nodeType && !el.dom){ // dh config
             if(where == 'after' && !this.dom.nextSibling){
                 rt = Ext.DomHelper.append(this.dom.parentNode, el, !returnDom);
             }else{
@@ -3736,14 +3972,14 @@ El.prototype = {
 
     
     replaceWith: function(el){
-        if(typeof el == 'object' && !el.nodeType){ 
+        if(typeof el == 'object' && !el.nodeType && !el.dom){ // dh config
             el = this.insertSibling(el, 'before');
         }else{
             el = Ext.getDom(el);
             this.dom.parentNode.insertBefore(el, this.dom);
         }
         El.uncache(this.id);
-        this.dom.parentNode.removeChild(this.dom);
+        Ext.removeNode(this.dom);
         this.dom = el;
         this.id = Ext.id(el);
         El.cache[this.id] = this;
@@ -3778,7 +4014,7 @@ El.prototype = {
     
     addKeyListener : function(key, fn, scope){
         var config;
-        if(typeof key != "object" || key instanceof Array){
+        if(typeof key != "object" || Ext.isArray(key)){
             config = {
                 key: key,
                 fn: fn,
@@ -3873,7 +4109,7 @@ El.prototype = {
 
     
     translatePoints : function(x, y){
-        if(typeof x == 'object' || x instanceof Array){
+        if(typeof x == 'object' || Ext.isArray(x)){
             y = x[1]; x = x[0];
         }
         var p = this.getStyle('position');
@@ -3963,6 +4199,7 @@ El.prototype = {
         return d.getAttributeNS(ns, name) || d.getAttribute(ns+":"+name) || d.getAttribute(name) || d[name];
     },
 
+    
     getTextWidth : function(text, min, max){
         return (Ext.util.TextMetrics.measure(this.dom, Ext.value(text, this.dom.innerHTML, true)).width).constrain(min || 0, max || 1000000);
     }
@@ -3972,7 +4209,7 @@ var ep = El.prototype;
 
 
 ep.on = ep.addListener;
-    
+    // backwards compat
 ep.mon = ep.addListener;
 
 ep.getUpdateManager = ep.getUpdater;
@@ -3983,10 +4220,10 @@ ep.un = ep.removeListener;
 
 ep.autoBoxAdjust = true;
 
-
+// private
 El.unitPattern = /\d+(px|em|%|en|ex|pt|in|cm|mm|pc)$/i;
 
-
+// private
 El.addUnits = function(v, defaultUnit){
     if(v === "" || v == "auto"){
         return v;
@@ -4000,7 +4237,7 @@ El.addUnits = function(v, defaultUnit){
     return v;
 };
 
-
+// special markup used throughout Ext when box wrapping elements
 El.boxMarkup = '<div class="{0}-tl"><div class="{0}-tr"><div class="{0}-tc"></div></div></div><div class="{0}-ml"><div class="{0}-mr"><div class="{0}-mc"></div></div></div><div class="{0}-bl"><div class="{0}-br"><div class="{0}-bc"></div></div></div>';
 
 El.VISIBILITY = 1;
@@ -4022,7 +4259,7 @@ var docEl;
 El.get = function(el){
     var ex, elm, id;
     if(!el){ return null; }
-    if(typeof el == "string"){ 
+    if(typeof el == "string"){ // element id
         if(!(elm = document.getElementById(el))){
             return null;
         }
@@ -4032,7 +4269,7 @@ El.get = function(el){
             ex = El.cache[el] = new El(elm);
         }
         return ex;
-    }else if(el.tagName){ 
+    }else if(el.tagName){ // dom element
         if(!(id = el.id)){
             id = Ext.id(el);
         }
@@ -4044,17 +4281,17 @@ El.get = function(el){
         return ex;
     }else if(el instanceof El){
         if(el != docEl){
-            el.dom = document.getElementById(el.id) || el.dom; 
-                                                          
-            El.cache[el.id] = el; 
+            el.dom = document.getElementById(el.id) || el.dom; // refresh dom element in case no longer valid,
+                                                          // catch case where it hasn't been appended
+            El.cache[el.id] = el; // in case it was created directly with Element(), let's cache it
         }
         return el;
     }else if(el.isComposite){
         return el;
-    }else if(el instanceof Array){
+    }else if(Ext.isArray(el)){
         return El.select(el);
     }else if(el == document){
-        
+        // create a bogus element object representing the document object
         if(!docEl){
             var f = function(){};
             f.prototype = El.prototype;
@@ -4066,7 +4303,7 @@ El.get = function(el){
     return null;
 };
 
-
+// private
 El.uncache = function(el){
     for(var i = 0, a = arguments, len = a.length; i < len; i++) {
         if(a[i]){
@@ -4075,9 +4312,9 @@ El.uncache = function(el){
     }
 };
 
-
-
-
+// private
+// Garbage collection - uncache elements/purge listeners on orphaned elements
+// so we don't hold a reference and cause the browser to retain them
 El.garbageCollect = function(){
     if(!Ext.enableGarbageCollector){
         clearInterval(El.collectorThread);
@@ -4085,27 +4322,27 @@ El.garbageCollect = function(){
     }
     for(var eid in El.cache){
         var el = El.cache[eid], d = el.dom;
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+        // -------------------------------------------------------
+        // Determining what is garbage:
+        // -------------------------------------------------------
+        // !d
+        // dom node is null, definitely garbage
+        // -------------------------------------------------------
+        // !d.parentNode
+        // no parentNode == direct orphan, definitely garbage
+        // -------------------------------------------------------
+        // !d.offsetParent && !document.getElementById(eid)
+        // display none elements have no offsetParent so we will
+        // also try to look it up by it's id. However, check
+        // offsetParent first so we don't do unneeded lookups.
+        // This enables collection of elements that are not orphans
+        // directly, but somewhere up the line they have an orphan
+        // parent.
+        // -------------------------------------------------------
         if(!d || !d.parentNode || (!d.offsetParent && !document.getElementById(eid))){
             delete El.cache[eid];
             if(d && Ext.enableListenerCollection){
-                E.purgeElement(d);
+                Ext.EventManager.removeAll(d);
             }
         }
     }
@@ -4116,7 +4353,7 @@ var flyFn = function(){};
 flyFn.prototype = El.prototype;
 var _cls = new flyFn();
 
-
+// dom is optional
 El.Flyweight = function(dom){
     this.dom = dom;
 };
@@ -4144,7 +4381,7 @@ Ext.get = El.get;
 
 Ext.fly = El.fly;
 
-
+// speedy lookup for elements never to box adjust
 var noBoxAdjust = Ext.isStrict ? {
     select:1
 } : {
@@ -4161,6 +4398,7 @@ Ext.EventManager.on(window, 'unload', function(){
 });
 })();
 
+//Notifies Element that fx methods are available
 Ext.enableFx = true;
 
 
@@ -4174,25 +4412,31 @@ Ext.Fx = {
 
             anchor = anchor || "t";
 
-                        this.fixDisplay();
+            // fix display to visibility
+            this.fixDisplay();
 
-                        var r = this.getFxRestore();
+            // restore values after effect
+            var r = this.getFxRestore();
             var b = this.getBox();
-                        this.setSize(b);
+            // fixed size for slide
+            this.setSize(b);
 
-                        var wrap = this.fxWrap(r.pos, o, "hidden");
+            // wrap if needed
+            var wrap = this.fxWrap(r.pos, o, "hidden");
 
             var st = this.dom.style;
             st.visibility = "visible";
             st.position = "absolute";
 
-                        var after = function(){
+            // clear out temp styles after slide and unwrap
+            var after = function(){
                 el.fxUnwrap(wrap, r.pos, o);
                 st.width = r.width;
                 st.height = r.height;
                 el.afterFx(o);
             };
-                        var a, pt = {to: [b.x, b.y]}, bw = {to: b.width}, bh = {to: b.height};
+            // time to calc the positions
+            var a, pt = {to: [b.x, b.y]}, bw = {to: b.width}, bh = {to: b.height};
 
             switch(anchor.toLowerCase()){
                 case "t":
@@ -4262,12 +4506,15 @@ Ext.Fx = {
 
             anchor = anchor || "t";
 
-                        var r = this.getFxRestore();
+            // restore values after effect
+            var r = this.getFxRestore();
             
             var b = this.getBox();
-                        this.setSize(b);
+            // fixed size for slide
+            this.setSize(b);
 
-                        var wrap = this.fxWrap(r.pos, o, "visible");
+            // wrap if needed
+            var wrap = this.fxWrap(r.pos, o, "visible");
 
             var st = this.dom.style;
             st.visibility = "visible";
@@ -4344,7 +4591,8 @@ Ext.Fx = {
             this.clearOpacity();
             this.show();
 
-                        var r = this.getFxRestore();
+            // restore values after effect
+            var r = this.getFxRestore();
             var st = this.dom.style;
 
             var after = function(){
@@ -4390,7 +4638,8 @@ Ext.Fx = {
             this.clearOpacity();
             this.clip();
 
-                        var r = this.getFxRestore();
+            // restore values after effect
+            var r = this.getFxRestore();
             var st = this.dom.style;
 
             var after = function(){
@@ -4473,7 +4722,8 @@ Ext.Fx = {
                      style:{
                         visbility:"hidden",
                         position:"absolute",
-                        "z-index":"35000",                         border:"0px solid " + color
+                        "z-index":"35000", // yee haw
+                        border:"0px solid " + color
                      }
                   });
                 var scale = Ext.isBorderBox ? 2 : 1;
@@ -4536,14 +4786,17 @@ Ext.Fx = {
         var el = this.getFxEl();
         o = o || {};
         el.queueFx(o, function(){
-            arguments.callee.anim = this.fxanim({opacity:{to:o.endOpacity || 0}},
+            var to = o.endOpacity || 0;
+            arguments.callee.anim = this.fxanim({opacity:{to:to}},
                 o, null, .5, "easeOut", function(){
-                if(this.visibilityMode == Ext.Element.DISPLAY || o.useDisplay){
-                     this.dom.style.display = "none";
-                }else{
-                     this.dom.style.visibility = "hidden";
+                if(to === 0){
+                    if(this.visibilityMode == Ext.Element.DISPLAY || o.useDisplay){
+                         this.dom.style.display = "none";
+                    }else{
+                         this.dom.style.visibility = "hidden";
+                    }
+                    this.clearOpacity();
                 }
-                this.clearOpacity();
                 el.afterFx(o);
             });
         });
@@ -4570,6 +4823,18 @@ Ext.Fx = {
             }
             if(h !== undefined){
                 a.height = {to: this.adjustHeight(h)};
+            }
+            if(o.left !== undefined){
+                a.left = {to: o.left};
+            }
+            if(o.top !== undefined){
+                a.top = {to: o.top};
+            }
+            if(o.right !== undefined){
+                a.right = {to: o.right};
+            }
+            if(o.bottom !== undefined){
+                a.bottom = {to: o.bottom};
             }
             if(x !== undefined || y !== undefined){
                 a.points = {to: [
@@ -4599,7 +4864,8 @@ Ext.Fx = {
         el.queueFx(o, function(){
             anchor = anchor || "b";
 
-                        var r = this.getFxRestore();
+            // restore values after effect
+            var r = this.getFxRestore();
             var w = this.getWidth(),
                 h = this.getHeight();
 
@@ -4695,7 +4961,8 @@ Ext.Fx = {
         if(this.hasActiveFx()){
             var cur = this.fxQueue[0];
             if(cur && cur.anim && cur.anim.isAnimated()){
-                this.fxQueue = [cur];                 cur.anim.stop(true);
+                this.fxQueue = [cur]; // clear out others
+                cur.anim.stop(true);
             }
         }
         return this;
@@ -4800,7 +5067,8 @@ Ext.Fx = {
     },
 
 	
-    getFxEl : function(){         return Ext.get(this.dom);
+    getFxEl : function(){ // support for composite element fx
+        return Ext.get(this.dom);
     },
 
 	
@@ -4821,8 +5089,11 @@ Ext.Fx = {
     }
 };
 
+// backwords compat
 Ext.Fx.resize = Ext.Fx.scale;
 
+//When included, Ext.Fx is automatically applied to Element so that all basic
+//effects are available directly via the Element API
 Ext.apply(Ext.Element.prototype, Ext.Fx);
 
 
@@ -4926,7 +5197,7 @@ Ext.CompositeElement.prototype = {
 
     
     removeElement : function(el, removeDom){
-        if(el instanceof Array){
+        if(Ext.isArray(el)){
             for(var i = 0, len = el.length; i < len; i++){
                 this.removeElement(el[i]);
             }
@@ -4988,7 +5259,7 @@ Ext.CompositeElementLite = function(els){
 Ext.extend(Ext.CompositeElementLite, Ext.CompositeElement, {
     addElements : function(els){
         if(els){
-            if(els instanceof Array){
+            if(Ext.isArray(els)){
                 this.elements = this.elements.concat(els);
             }else{
                 var yels = this.elements;
@@ -5018,7 +5289,7 @@ Ext.extend(Ext.CompositeElementLite, Ext.CompositeElement, {
         return this.el;
     },
 
-    
+    // fixes scope with flyweight
     addListener : function(eventName, handler, scope, opt){
         var els = this.elements;
         for(var i = 0, len = els.length; i < len; i++) {
@@ -5106,6 +5377,10 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
 
     
     disableCaching: true,
+    
+    
+    disableCachingParam: '_dc',
+    
 
     
     request : function(o){
@@ -5153,23 +5428,24 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
                 failure: this.handleFailure,
                 scope: this,
                 argument: {options: o},
-                timeout : this.timeout
+                timeout : o.timeout || this.timeout
             };
 
-            var method = o.method||this.method||(p ? "POST" : "GET");
+            var method = o.method||this.method||((p || o.xmlData || o.jsonData) ? "POST" : "GET");
 
             if(method == 'GET' && (this.disableCaching && o.disableCaching !== false) || o.disableCaching === true){
-                url += (url.indexOf('?') != -1 ? '&' : '?') + '_dc=' + (new Date().getTime());
+                var dcp = o.disableCachingParam || this.disableCachingParam;
+                url += (url.indexOf('?') != -1 ? '&' : '?') + dcp + '=' + (new Date().getTime());
             }
 
-            if(typeof o.autoAbort == 'boolean'){ 
+            if(typeof o.autoAbort == 'boolean'){ // options gets top priority
                 if(o.autoAbort){
                     this.abort();
                 }
             }else if(this.autoAbort !== false){
                 this.abort();
             }
-            if((method == 'GET' && p) || o.xmlData || o.jsonData){
+            if((method == 'GET' || o.xmlData || o.jsonData) && p){
                 url += (url.indexOf('?') != -1 ? '&' : '?') + p;
                 p = '';
             }
@@ -5197,7 +5473,7 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
         }
     },
 
-    
+    // private
     handleResponse : function(response){
         this.transId = false;
         var options = response.argument.options;
@@ -5207,7 +5483,7 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
         Ext.callback(options.callback, options.scope, [options, true, response]);
     },
 
-    
+    // private
     handleFailure : function(response, e){
         this.transId = false;
         var options = response.argument.options;
@@ -5217,7 +5493,7 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
         Ext.callback(options.callback, options.scope, [options, false, response]);
     },
 
-    
+    // private
     doFormUpload : function(o, ps, url){
         var id = Ext.id();
         var frame = document.createElement('iframe');
@@ -5242,7 +5518,7 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
         }
 
         var hiddens, hd;
-        if(ps){ 
+        if(ps){ // add dynamic params
             hiddens = [];
             ps = Ext.urlDecode(ps, false);
             for(var k in ps){
@@ -5258,14 +5534,14 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
         }
 
         function cb(){
-            var r = {  
+            var r = {  // bogus response object
                 responseText : '',
                 responseXML : null
             };
 
             r.argument = o ? o.argument : null;
 
-            try { 
+            try { //
                 var doc;
                 if(Ext.isIE){
                     doc = frame.contentWindow.document;
@@ -5282,7 +5558,7 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
                 }
             }
             catch(e) {
-                
+                // ignore
             }
 
             Ext.EventManager.removeListener(frame, 'load', cb, this);
@@ -5298,7 +5574,7 @@ Ext.extend(Ext.data.Connection, Ext.util.Observable, {
         Ext.EventManager.on(frame, 'load', cb, this);
         form.submit();
 
-        if(hiddens){ 
+        if(hiddens){ // remove dynamic params
             for(var i = 0, len = hiddens.length; i < len; i++){
                 Ext.removeNode(hiddens[i]);
             }
@@ -5333,81 +5609,80 @@ Ext.Ajax = new Ext.data.Connection({
     }
 });
 
-Ext.Updater = function(el, forceNew){
-    el = Ext.get(el);
-    if(!forceNew && el.updateManager){
-        return el.updateManager;
-    }
-    
-    this.el = el;
-    
-    this.defaultUrl = null;
-
-    this.addEvents(
+Ext.Updater = Ext.extend(Ext.util.Observable, {
+    constructor: function(el, forceNew){
+        el = Ext.get(el);
+        if(!forceNew && el.updateManager){
+            return el.updateManager;
+        }
         
-        "beforeupdate",
+        this.el = el;
         
-        "update",
+        this.defaultUrl = null;
+
+        this.addEvents(
+            
+            "beforeupdate",
+            
+            "update",
+            
+            "failure"
+        );
+        var d = Ext.Updater.defaults;
         
-        "failure"
-    );
-    var d = Ext.Updater.defaults;
-    
-    this.sslBlankUrl = d.sslBlankUrl;
-    
-    this.disableCaching = d.disableCaching;
-    
-    this.indicatorText = d.indicatorText;
-    
-    this.showLoadIndicator = d.showLoadIndicator;
-    
-    this.timeout = d.timeout;
+        this.sslBlankUrl = d.sslBlankUrl;
+        
+        this.disableCaching = d.disableCaching;
+        
+        this.indicatorText = d.indicatorText;
+        
+        this.showLoadIndicator = d.showLoadIndicator;
+        
+        this.timeout = d.timeout;
+        
+        this.loadScripts = d.loadScripts;
+        
+        this.transaction = null;
+        
+        this.refreshDelegate = this.refresh.createDelegate(this);
+        
+        this.updateDelegate = this.update.createDelegate(this);
+        
+        this.formUpdateDelegate = this.formUpdate.createDelegate(this);
 
+        if(!this.renderer){
+         
+        this.renderer = this.getDefaultRenderer();
+        }
+        Ext.Updater.superclass.constructor.call(this);
+    },
     
-    this.loadScripts = d.loadScripts;
-
-    
-    this.transaction = null;
-
-    
-    this.autoRefreshProcId = null;
-    
-    this.refreshDelegate = this.refresh.createDelegate(this);
-    
-    this.updateDelegate = this.update.createDelegate(this);
-    
-    this.formUpdateDelegate = this.formUpdate.createDelegate(this);
-
-    if(!this.renderer){
-     
-    this.renderer = new Ext.Updater.BasicRenderer();
-    }
-    Ext.Updater.superclass.constructor.call(this);
-};
-
-Ext.extend(Ext.Updater, Ext.util.Observable, {
+    getDefaultRenderer: function() {
+        return new Ext.Updater.BasicRenderer();
+    },
     
     getEl : function(){
         return this.el;
     },
+
     
     update : function(url, params, callback, discardUrl){
         if(this.fireEvent("beforeupdate", this.el, url, params) !== false){
-            var method = this.method, cfg, callerScope;
-            if(typeof url == "object"){ 
+            var cfg, callerScope;
+            if(typeof url == "object"){ // must be config object
                 cfg = url;
                 url = cfg.url;
                 params = params || cfg.params;
                 callback = callback || cfg.callback;
                 discardUrl = discardUrl || cfg.discardUrl;
-	            callerScope = cfg.scope;
-                if(typeof cfg.method != "undefined"){method = cfg.method;};
+                callerScope = cfg.scope;
                 if(typeof cfg.nocache != "undefined"){this.disableCaching = cfg.nocache;};
                 if(typeof cfg.text != "undefined"){this.indicatorText = '<div class="loading-indicator">'+cfg.text+"</div>";};
                 if(typeof cfg.scripts != "undefined"){this.loadScripts = cfg.scripts;};
                 if(typeof cfg.timeout != "undefined"){this.timeout = cfg.timeout;};
             }
             this.showLoading();
+
             if(!discardUrl){
                 this.defaultUrl = url;
             }
@@ -5415,12 +5690,7 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
                 url = url.call(this);
             }
 
-            method = method || (params ? "POST" : "GET");
-            if(method == "GET"){
-                url = this.prepareUrl(url);
-            }
-
-            var o = Ext.apply(cfg ||{}, {
+            var o = Ext.apply({}, {
                 url : url,
                 params: (typeof params == "function" && callerScope) ? params.createDelegate(callerScope) : params,
                 success: this.processSuccess,
@@ -5428,15 +5698,16 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
                 scope: this,
                 callback: undefined,
                 timeout: (this.timeout*1000),
+                disableCaching: this.disableCaching,
                 argument: {
-                	"options": cfg,
-                	"url": url,
-                	"form": null,
-                	"callback": callback,
-                	"scope": callerScope || window,
-                	"params": params
+                    "options": cfg,
+                    "url": url,
+                    "form": null,
+                    "callback": callback,
+                    "scope": callerScope || window,
+                    "params": params
                 }
-            });
+            }, cfg);
 
             this.transaction = Ext.Ajax.request(o);
         }
@@ -5457,10 +5728,10 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
                 scope: this,
                 timeout: (this.timeout*1000),
                 argument: {
-                	"url": url,
-                	"form": form,
-                	"callback": callback,
-                	"reset": reset
+                    "url": url,
+                    "form": form,
+                    "callback": callback,
+                    "reset": reset
                 }
             });
             this.showLoading.defer(1, this);
@@ -5494,9 +5765,11 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
         }
     },
 
+    
     isAutoRefreshing : function(){
        return this.autoRefreshProcId ? true : false;
     },
+
     
     showLoading : function(){
         if(this.showLoadIndicator){
@@ -5504,24 +5777,11 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
         }
     },
 
-    
-    prepareUrl : function(url){
-        if(this.disableCaching){
-            var append = "_dc=" + (new Date().getTime());
-            if(url.indexOf("?") !== -1){
-                url += "&" + append;
-            }else{
-                url += "?" + append;
-            }
-        }
-        return url;
-    },
-
-    
+    // private
     processSuccess : function(response){
         this.transaction = null;
         if(response.argument.form && response.argument.reset){
-            try{ 
+            try{ // put in try/catch since some older FF releases had problems with this
                 response.argument.form.reset();
             }catch(e){}
         }
@@ -5534,6 +5794,7 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
         }
     },
 
+    // private
     updateComplete : function(response){
         this.fireEvent("update", this.el, response);
         if(typeof response.argument.callback == "function"){
@@ -5541,7 +5802,7 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
         }
     },
 
-    
+    // private
     processFailure : function(response){
         this.transaction = null;
         this.fireEvent("failure", this.el, response);
@@ -5555,6 +5816,7 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
         this.renderer = renderer;
     },
 
+    
     getRenderer : function(){
        return this.renderer;
     },
@@ -5584,10 +5846,8 @@ Ext.extend(Ext.Updater, Ext.util.Observable, {
    Ext.Updater.defaults = {
        
          timeout : 30,
-
          
         loadScripts : false,
-
         
         sslBlankUrl : (Ext.SSL_SECURE_URL || "javascript:false"),
         
@@ -5604,8 +5864,6 @@ Ext.Updater.updateElement = function(el, url, params, options){
     Ext.apply(um, options);
     um.update(url, params, options ? options.callback : null);
 };
-
-Ext.Updater.update = Ext.Updater.updateElement;
 
 Ext.Updater.BasicRenderer = function(){};
 
