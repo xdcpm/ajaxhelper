@@ -220,7 +220,7 @@ ad_proc ah::lb::filter_url {
     # don't put URL vars in the key just the page we are looking at
     regexp {([^\?]*)\??} $return_url discard base_url
     set key [ns_sha1 [list $base_url $list_name]]
-    set url [export_vars -no_empty -base /acs-templating/list-add-filter {list_name filter_name key return_url filter_value}]
+    set url [export_vars -no_empty -base /ajax/list-add-filter {list_name filter_name key return_url filter_value}]
     return $url
 }
 
@@ -234,7 +234,7 @@ ad_proc ah::lb::multiple_filter_url {
     # don't put URL vars in the key just the page we are looking at
     regexp {([^\?]*)\??} $return_url discard base_url
     set key [ns_sha1 [list $base_url $list_name]]
-    set url [export_vars -no_empty -base /acs-templating/list-add-filter {list_name filter_names key return_url}]
+    set url [export_vars -no_empty -base /ajax/list-add-filter {list_name filter_names key return_url}]
     return $url
 }
 
@@ -407,7 +407,7 @@ ad_proc ah::lb::prepare_template {
 	    }
 	} -on_submit {
 	    if {[exists_and_not_null formbutton_delete]} {
-		ad_returnredirect [export_vars -base /acs-templating/list-view-delete {{list_name $___list_name} {view_name $__list_view} {return_url "[ad_conn url]"}}]
+		ad_returnredirect [export_vars -base /ajax/list-view-delete {{list_name $___list_name} {view_name $__list_view} {return_url "[ad_conn url]"} {parent_id "[ad_conn package_id]}}]
 		ad_script_abort
 	    }
 	}
