@@ -102,8 +102,8 @@ ad_proc -private ah::requires {
                 template::head::add_javascript -order 2 -src "${ah_base_url}overlibmws/overlibmws_scroll${minsuffix}.js"
             }
             "overlibmws_drag" {
-                template::head::add_javascript -src -order 1 "${ah_base_url}overlibmws/overlibmws${minsuffix}.js"
-                template::head::add_javascript -src -order 2 "${ah_base_url}overlibmws/overlibmws_draggable${minsuffix}.js"
+                template::head::add_javascript -order 1 -src 1 "${ah_base_url}overlibmws/overlibmws${minsuffix}.js"
+                template::head::add_javascript -order 2 -src "${ah_base_url}overlibmws/overlibmws_draggable${minsuffix}.js"
             }
             "prototype" {
                 template::head::add_javascript -src "${ah_base_url}prototype/prototype${minsuffix}.js"
