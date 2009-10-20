@@ -41,7 +41,7 @@ ad_proc -private ah::yui::load_js_sources {
     set requires_list [join $source_list "','"]
 
     append script "<script language=\"javascript\" type=\"text/javascript\">YAHOO_config = { load: { require: \['${requires_list}'\], ${base} onLoadComplete: function(loader) { ah_page_init() } } } </script>"
-    append script "<script src='${ah_base_url}yuiloader/yuiloader-beta-min.js'></script>"
+    append script "<script src='${ah_base_url}yuiloader/yuiloader-min.js'></script>"
 
     return ${script}
 }
