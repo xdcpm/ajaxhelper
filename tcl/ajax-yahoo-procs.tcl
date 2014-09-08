@@ -20,7 +20,6 @@ ad_proc -private ah::yui::load_js_sources {
 
     @author Hamilton Chua (ham@solutiongrove.com)
     @creation-date 2006-11-05
-    @modified-date 2007-08-12
 } {
 
     set ah_base_url "[ah::get_url]yui/"
